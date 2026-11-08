@@ -57,8 +57,12 @@
             <button onclick="switchTab('sales')" id="tab-sales" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">今日營收</button>
         </div>
 
-        <div class="hidden md:block text-sm text-stone-500 font-medium" id="current-time">
-            00:00
+        <div class="hidden md:flex items-center gap-4 text-sm text-stone-500 font-medium">
+            <button onclick="syncFromCloud()" id="sync-btn" class="flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg transition-colors active:scale-95 text-stone-600">
+                <i class="ph ph-arrows-clockwise text-lg"></i>
+                <span>同步雲端</span>
+            </button>
+            <span id="current-time">00:00</span>
         </div>
     </header>
 
@@ -348,14 +352,85 @@
     </div>
 
     <script>
+        // ==========================================
+        // 穩定單機版 + Google 表單自動記帳 (無須 Firebase)
+        // ==========================================
+        
         // --- API & State Management ---
         const scriptURL = 'https://script.google.com/macros/s/AKfycbxR4UI2CoI6OicuCiDqX40JUdBb7mOz1rwHrnHzaTWL5ErsOQE9xIEVCojPP9mP146kYA/exec';
         
-        // 讀取本地端資料 (穩定版：不依賴外部資料庫，資料存在這台裝置上)
+        // 從瀏覽器暫存 (Local Storage) 讀取資料
         let inventory = JSON.parse(localStorage.getItem('adorable_inventory')) || [];
-        let cart = [];
         let salesHistory = JSON.parse(localStorage.getItem('adorable_sales')) || [];
+        let cart = [];
         let isDiscountEnabled = false;
+
+        // 雲端同步功能
+        async function syncFromCloud() {
+            const btn = document.getElementById('sync-btn');
+            if(btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i><span>同步中...</span>';
+            }
+            try {
+                // 新增 redirect: 'follow' 處理 Google 轉址
+                const res = await fetch(scriptURL, { 
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    // 若雲端有資料才覆蓋，否則保留本地
+                    if (data.inventory && data.inventory.length > 0) inventory = data.inventory;
+                    if (data.sales && data.sales.length > 0) salesHistory = data.sales;
+                    
+                    saveToLocal();
+                    renderInventory();
+                    renderOverview();
+                    renderSales();
+                    if(btn) btn.innerHTML = '<i class="ph ph-check text-lg text-emerald-600"></i><span>已同步</span>';
+                }
+            } catch(e) {
+                console.warn('Sync failed, falling back to local storage:', e);
+                // 顯示溫和的錯誤提示，不影響結帳操作
+                if(btn) btn.innerHTML = '<i class="ph ph-warning text-lg text-amber-500"></i><span>雲端斷線(單機模式)</span>';
+            }
+            if(btn) {
+                btn.disabled = false;
+                setTimeout(() => {
+                    if(btn.innerHTML.includes('已同步') || btn.innerHTML.includes('單機模式')) {
+                        btn.innerHTML = '<i class="ph ph-arrows-clockwise text-lg"></i><span>同步雲端</span>';
+                    }
+                }, 3000);
+            }
+        }
+
+        async function syncToCloudInventory() {
+            const btn = document.getElementById('sync-btn');
+            if(btn) btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i><span>儲存中...</span>';
+            try {
+                await fetch(scriptURL, {
+                    method: 'POST',
+                    redirect: 'follow', // 同樣加上 redirect 屬性
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'update_inventory', data: inventory })
+                });
+                if(btn) btn.innerHTML = '<i class="ph ph-cloud-check text-lg text-emerald-600"></i><span>雲端已更新</span>';
+            } catch(e) { 
+                console.warn('Background sync failed:', e); 
+                if(btn) btn.innerHTML = '<i class="ph ph-warning text-lg text-amber-500"></i><span>尚未同步至雲端</span>';
+            }
+            setTimeout(() => {
+                if(btn && (btn.innerHTML.includes('更新') || btn.innerHTML.includes('尚未同步'))) {
+                    btn.innerHTML = '<i class="ph ph-arrows-clockwise text-lg"></i><span>同步雲端</span>';
+                }
+            }, 3000);
+        }
+
+        function saveToLocal() {
+            localStorage.setItem('adorable_inventory', JSON.stringify(inventory));
+            localStorage.setItem('adorable_sales', JSON.stringify(salesHistory));
+        }
 
         // --- DOM Elements ---
         const cartContainer = document.getElementById('cart-container');
@@ -367,35 +442,28 @@
         const modalTotal = document.getElementById('modal-total');
         const modalPayment = document.getElementById('modal-payment');
         const checkoutError = document.getElementById('checkout-error');
-        const discountToggle = document.getElementById('discount-toggle');
         
         const skuInput = document.getElementById('sku-input');
         const skuError = document.getElementById('sku-error');
         const inventoryList = document.getElementById('inventory-list');
         const invCount = document.getElementById('inv-count');
 
-        // --- Data Persistence ---
-        function saveToLocal() {
-            localStorage.setItem('adorable_inventory', JSON.stringify(inventory));
-        }
-        window.removeFromCart = removeFromCart;
-        window.processCheckout = processCheckout;
-        window.closeModal = closeModal;
-        window.autoGenerateSKU = autoGenerateSKU;
-
         // --- Initialization ---
         function init() {
             updateTime();
             setInterval(updateTime, 60000);
-            renderCart();
+            
             renderInventory();
             renderOverview();
             renderSales();
-            
+
             skuInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') handleAddSku();
             });
             skuInput.focus();
+            
+            // 開啟網頁時自動抓取雲端資料
+            syncFromCloud();
         }
 
         function updateTime() {
@@ -403,7 +471,6 @@
             document.getElementById('current-time').innerText = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
         }
 
-        // --- Tab Switching Logic ---
         function switchTab(tab) {
             const views = {
                 checkout: document.getElementById('checkout-view'),
@@ -437,25 +504,14 @@
             if (tab === 'inventory') {
                 if (!document.getElementById('inv-sku').value) autoGenerateSKU();
             }
-            if (tab === 'overview') renderOverview();
-            if (tab === 'sales') renderSales();
         }
 
-        // --- Inventory Logic (Cloud) ---
         function autoGenerateSKU() {
             const category = document.getElementById('inv-category').value;
             const skuInput = document.getElementById('inv-sku');
-
-            // 類別對應的字首
-            const prefixMap = {
-                '服飾': 'A',
-                '包包': 'B',
-                '配件': 'C',
-                '小物': 'D'
-            };
+            const prefixMap = { '服飾': 'A', '包包': 'B', '配件': 'C', '小物': 'D' };
             const prefix = prefixMap[category] || 'X';
 
-            // 篩選目前該類別的庫存
             const categoryItems = inventory.filter(item => item.category === category);
             let maxNum = 0;
 
@@ -469,12 +525,11 @@
                 }
             });
 
-            // 找出最大值並加 1，補齊兩位數
             const nextNum = maxNum + 1;
             skuInput.value = `${prefix}${nextNum.toString().padStart(2, '0')}`;
         }
 
-        async function saveInventoryItem() {
+        function saveInventoryItem() {
             const sku = document.getElementById('inv-sku').value.trim().toUpperCase();
             const category = document.getElementById('inv-category').value;
             const name = document.getElementById('inv-name').value.trim();
@@ -485,24 +540,22 @@
             if (!sku || !name || price < 0 || quantity < 0) return;
 
             const existingIndex = inventory.findIndex(item => item.sku === sku);
-            const newItem = { sku, category, name, origPrice, price, quantity };
-
             if (existingIndex > -1) {
-                inventory[existingIndex] = newItem;
+                inventory[existingIndex] = { sku, category, name, origPrice, price, quantity };
             } else {
-                inventory.push(newItem);
+                inventory.push({ sku, category, name, origPrice, price, quantity });
             }
 
             saveToLocal();
             renderInventory();
             renderOverview();
+            syncToCloudInventory(); // 同步上傳到 Google 表單
 
             document.getElementById('inventory-form').reset();
-            document.getElementById('inv-category').value = category; // 保留剛才選擇的類別
-            autoGenerateSKU(); // 自動產生下一號
-            document.getElementById('inv-name').focus(); // 游標自動跳到名稱
+            document.getElementById('inv-category').value = category; 
+            autoGenerateSKU(); 
+            document.getElementById('inv-name').focus(); 
 
-            // Visual feedback
             const btn = document.querySelector('#inventory-form button');
             const origText = btn.innerHTML;
             btn.innerHTML = '<i class="ph ph-check text-xl"></i>';
@@ -518,6 +571,7 @@
             saveToLocal();
             renderInventory();
             renderOverview();
+            syncToCloudInventory(); // 同步上傳到 Google 表單
         }
 
         function renderInventory() {
@@ -599,7 +653,6 @@
             `).join('');
         }
 
-        // --- Checkout Logic ---
         function handleAddSku() {
             const sku = skuInput.value.trim().toUpperCase();
             if (!sku) return;
@@ -760,8 +813,7 @@
             }
         }
 
-        // --- Checkout Finalization ---
-        async function processCheckout() {
+        function processCheckout() {
             if (cart.length === 0) return;
 
             let originalTotal = 0;
@@ -785,46 +837,50 @@
             checkoutBtn.disabled = true;
             checkoutBtn.innerHTML = '<i class="ph ph-spinner animate-spin text-2xl"></i> 處理中...';
 
-            try {
-                // 整理訂單資料 (準備傳給 Google Sheets & 本地今日營收)
-                const orderData = {
-                    orderId: 'ORD-' + Date.now().toString().slice(-6),
-                    timestamp: new Date().toLocaleString('zh-TW'),
-                    paymentMethod: paymentMethod,
-                    discountApplied: isDiscountEnabled,
-                    originalTotal: originalTotal,
-                    finalTotal: finalTotal,
-                    items: cart.map(i => ({
-                        sku: i.sku,
-                        category: i.category || '未分類', 
-                        name: i.name, 
-                        qty: i.quantity, 
-                        price: i.price 
-                    }))
-                };
+            const orderId = 'ORD-' + Date.now().toString().slice(-6);
+            const timestampMs = Date.now();
+            const timestamp = new Date().toLocaleString('zh-TW');
 
-                // 1. 扣除本地庫存
+            const orderData = {
+                orderId,
+                timestamp,
+                timestampMs,
+                paymentMethod,
+                discountApplied: isDiscountEnabled,
+                originalTotal,
+                finalTotal,
+                items: cart.map(i => ({
+                    sku: i.sku,
+                    category: i.category || '未分類', 
+                    name: i.name, 
+                    qty: i.quantity, 
+                    price: i.price 
+                }))
+            };
+
+            try {
+                // 1. 同步更新本地庫存數量
                 cart.forEach(cartItem => {
                     const invIndex = inventory.findIndex(i => i.sku === cartItem.sku);
                     if (invIndex > -1) {
                         inventory[invIndex].quantity = Math.max(0, inventory[invIndex].quantity - cartItem.quantity);
                     }
                 });
+
+                // 2. 儲存營收明細到本地端
+                salesHistory.unshift(orderData); // 加在最前面
                 saveToLocal();
+                
+                // 更新畫面
                 renderInventory();
                 renderOverview();
-
-                // 2. 儲存至本地今日營收
-                salesHistory.unshift(orderData);
-                localStorage.setItem('adorable_sales', JSON.stringify(salesHistory));
                 renderSales();
 
-                // 3. Webhook 傳送至 Google Sheets (背景傳送不卡頓)
+                // 3. 拋送至 Google Sheets (背景執行)
                 fetch(scriptURL, {
                     method: 'POST',
-                    mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(orderData)
+                    body: JSON.stringify({ action: 'checkout', data: orderData }) // 修改送出格式
                 }).catch(err => console.warn('Google Sheets sync skipped:', err));
 
                 // 顯示成功畫面
@@ -885,13 +941,20 @@
             salesList.innerHTML = salesHistory.map(order => {
                 totalRevenue += order.finalTotal;
                 
-                const itemsHtml = order.items.map(item => {
-                    totalItems += item.qty;
-                    return `<div class="text-sm text-stone-700 mb-1">
-                        <span class="text-stone-400 mr-2">[${item.sku}]</span>
-                        ${item.name} <span class="font-bold text-stone-800 ml-1">x${item.qty}</span>
-                    </div>`;
-                }).join('');
+                let itemsHtml = '';
+                if (Array.isArray(order.items)) {
+                    // 本地剛結帳的格式
+                    itemsHtml = order.items.map(item => {
+                        totalItems += item.qty;
+                        return `<div class="text-sm text-stone-700 mb-1">
+                            <span class="text-stone-400 mr-2">[${item.sku}]</span>
+                            ${item.name} <span class="font-bold text-stone-800 ml-1">x${item.qty}</span>
+                        </div>`;
+                    }).join('');
+                } else if (order.itemsDetailStr) {
+                    // 從 Google 表單抓下來的格式
+                    itemsHtml = `<div class="text-sm text-stone-700 whitespace-pre-line">${order.itemsDetailStr}</div>`;
+                }
 
                 const paymentBadgeColor = order.paymentMethod === 'LINE Pay' ? 'bg-[#06C755]/10 text-[#06C755] border-[#06C755]/20' : 
                                           order.paymentMethod === '轉帳' ? 'bg-[#8b7e74]/10 text-[#8b7e74] border-[#8b7e74]/20' : 
