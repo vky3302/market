@@ -1,1 +1,485 @@
-# market
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Adörable lab | Market POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons for minimalist icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+            background-color: #f7f6f3; /* Soft beige/stone background */
+        }
+        
+        /* Custom scrollbar for cart */
+        .cart-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .cart-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .cart-scroll::-webkit-scrollbar-thumb {
+            background-color: #d6d3d1;
+            border-radius: 20px;
+        }
+        
+        /* Prevent text selection to make it feel like an app */
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden text-stone-800 flex flex-col no-select">
+
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-stone-200 px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center shrink-0 gap-4 md:gap-0">
+        <div class="flex items-center gap-2">
+            <i class="ph ph-storefront text-2xl text-stone-600"></i>
+            <h1 class="text-xl font-semibold tracking-wide text-stone-700">Adörable lab <span class="text-sm font-normal text-stone-400 ml-2">Market POS</span></h1>
+        </div>
+        
+        <!-- Tab Navigation -->
+        <div class="flex gap-8 text-[17px] md:text-base w-full md:w-auto justify-center md:justify-start">
+            <button onclick="switchTab('checkout')" id="tab-checkout" class="font-medium text-[#8b7e74] border-b-2 border-[#8b7e74] pb-1 transition-colors">結帳收銀</button>
+            <button onclick="switchTab('inventory')" id="tab-inventory" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">庫存設定</button>
+        </div>
+
+        <div class="hidden md:block text-sm text-stone-500 font-medium" id="current-time">
+            00:00
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden relative">
+        
+        <!-- ==================== CHECKOUT VIEW ==================== -->
+        <div id="checkout-view" class="absolute inset-0 flex flex-col md:flex-row w-full h-full transition-opacity duration-300 z-10 bg-stone-50">
+            
+            <!-- Left: SKU Scanner/Input -->
+            <section class="flex-1 p-6 md:p-10 flex flex-col justify-center items-center overflow-y-auto">
+                <div class="w-full max-w-md bg-white p-8 rounded-3xl shadow-sm border border-stone-100 flex flex-col gap-6">
+                    <div class="text-center">
+                        <i class="ph ph-barcode text-5xl text-[#8b7e74] mb-3"></i>
+                        <h2 class="text-2xl font-semibold text-stone-700">輸入商品編號</h2>
+                        <p class="text-stone-400 text-sm mt-1">支援條碼槍直接掃描輸入</p>
+                    </div>
+                    
+                    <div class="flex flex-col gap-3 relative">
+                        <div class="flex gap-2">
+                            <input type="text" id="sku-input" class="flex-1 text-2xl uppercase tracking-wider p-4 border-2 border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-4 focus:ring-[#8b7e74]/10 transition-all text-center placeholder:text-stone-300 placeholder:text-lg" placeholder="例: A01" autocomplete="off">
+                            <button onclick="handleAddSku()" class="bg-[#8b7e74] text-white px-6 rounded-xl font-medium text-lg hover:bg-[#7a6f65] active:scale-95 transition-all flex items-center justify-center shadow-sm">
+                                加入
+                            </button>
+                        </div>
+                        <p id="sku-error" class="text-red-400 text-sm text-center h-5 transition-opacity opacity-0">找不到此商品編號</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right: Cart & Checkout -->
+            <section class="w-full md:w-96 lg:w-[420px] bg-white border-l border-stone-200 flex flex-col shrink-0 h-[55vh] md:h-full shadow-[-4px_0_24px_rgba(0,0,0,0.02)] z-20">
+                <div class="p-5 border-b border-stone-100 flex justify-between items-center shrink-0">
+                    <h2 class="text-lg font-semibold flex items-center gap-2 text-stone-800">
+                        <i class="ph ph-shopping-bag text-xl"></i> 目前購物車
+                    </h2>
+                    <button onclick="clearCart()" class="text-stone-400 hover:text-red-400 transition-colors flex items-center gap-1 text-sm bg-stone-50 px-3 py-1.5 rounded-lg">
+                        <i class="ph ph-trash"></i> 清空
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto cart-scroll p-4 space-y-3 bg-stone-50/50" id="cart-container">
+                    <!-- Empty state -->
+                    <div class="h-full flex flex-col items-center justify-center text-stone-400 opacity-70">
+                        <i class="ph ph-basket text-4xl mb-2"></i>
+                        <p class="text-sm">尚未加入商品</p>
+                    </div>
+                </div>
+
+                <div class="p-5 bg-white border-t border-stone-200 shrink-0">
+                    <div class="flex justify-between items-end mb-5 px-1">
+                        <span class="text-stone-500 font-medium">總計金額</span>
+                        <div class="text-right flex items-baseline gap-1">
+                            <span class="text-sm text-stone-400 font-medium">TWD</span>
+                            <span class="text-4xl font-bold text-stone-800 tracking-tight" id="cart-total">0</span>
+                        </div>
+                    </div>
+                    
+                    <button id="checkout-btn" onclick="processCheckout()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-medium text-xl py-4 rounded-2xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2" disabled>
+                        <i class="ph ph-check-circle text-2xl"></i>
+                        完成結帳
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <!-- ==================== INVENTORY VIEW ==================== -->
+        <div id="inventory-view" class="absolute inset-0 flex flex-col md:flex-row w-full h-full opacity-0 pointer-events-none z-0 bg-stone-50">
+            
+            <!-- Left: Add Item Form -->
+            <section class="w-full md:w-[400px] p-6 bg-white border-r border-stone-200 flex flex-col shrink-0 overflow-y-auto shadow-sm z-10">
+                <h2 class="text-xl font-semibold mb-6 text-stone-800 flex items-center gap-2">
+                    <i class="ph ph-plus-circle"></i> 新增/編輯商品
+                </h2>
+                
+                <form id="inventory-form" class="space-y-5" onsubmit="event.preventDefault(); saveInventoryItem();">
+                    <div>
+                        <label class="block text-sm font-medium text-stone-600 mb-1.5">商品編號 (SKU) *</label>
+                        <input type="text" id="inv-sku" required class="w-full p-3.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:bg-white uppercase transition-colors placeholder:text-stone-300" placeholder="例如：A01">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-stone-600 mb-1.5">品項名稱 *</label>
+                        <input type="text" id="inv-name" required class="w-full p-3.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:bg-white transition-colors" placeholder="例如：麂皮幹部外套">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1.5">原價 (選填)</label>
+                            <input type="number" id="inv-orig-price" class="w-full p-3.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:bg-white transition-colors" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1.5">現場售價 *</label>
+                            <input type="number" id="inv-price" required class="w-full p-3.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:bg-white transition-colors" placeholder="0">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full mt-4 bg-[#8b7e74] text-white p-4 rounded-xl font-medium text-lg hover:bg-[#7a6f65] active:scale-95 transition-all shadow-sm flex justify-center items-center gap-2">
+                        <i class="ph ph-floppy-disk text-xl"></i> 儲存至庫存清單
+                    </button>
+                </form>
+            </section>
+
+            <!-- Right: Inventory List -->
+            <section class="flex-1 p-6 md:p-8 overflow-y-auto cart-scroll">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-stone-700">目前庫存列表</h2>
+                    <span class="text-sm text-stone-500 bg-white px-3 py-1 rounded-full border border-stone-200 shadow-sm" id="inv-count">共 0 件</span>
+                </div>
+                
+                <div id="inventory-list" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <!-- Inventory items injected via JS -->
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center text-center" id="modal-content">
+            <div class="w-16 h-16 bg-[#eef1e6] rounded-full flex items-center justify-center mb-4 text-[#8b7e74]">
+                <i class="ph ph-check text-3xl font-bold"></i>
+            </div>
+            <h3 class="text-2xl font-semibold text-stone-800 mb-2">結帳成功！</h3>
+            <p class="text-stone-500 mb-6 text-sm">訂單已記錄，感謝購買。</p>
+            <div class="bg-stone-50 w-full p-4 rounded-xl mb-6 border border-stone-100">
+                <p class="text-sm text-stone-500 mb-1">本次實收</p>
+                <p class="text-2xl font-bold text-stone-800" id="modal-total">$0</p>
+            </div>
+            <button onclick="closeModal()" class="w-full py-3.5 bg-stone-800 text-white rounded-xl font-medium text-lg hover:bg-stone-700 transition-colors active:scale-95">
+                完成 (下一筆)
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let inventory = [];
+        let cart = [];
+
+        // --- DOM Elements ---
+        const cartContainer = document.getElementById('cart-container');
+        const cartTotalEl = document.getElementById('cart-total');
+        const checkoutBtn = document.getElementById('checkout-btn');
+        const successModal = document.getElementById('success-modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalTotal = document.getElementById('modal-total');
+        
+        const skuInput = document.getElementById('sku-input');
+        const skuError = document.getElementById('sku-error');
+        const inventoryList = document.getElementById('inventory-list');
+        const invCount = document.getElementById('inv-count');
+
+        // --- Initialization ---
+        function init() {
+            // Load inventory from localStorage
+            const savedInventory = localStorage.getItem('adorable_pos_inventory');
+            if (savedInventory) {
+                inventory = JSON.parse(savedInventory);
+            }
+            
+            updateTime();
+            setInterval(updateTime, 60000);
+            renderCart();
+            renderInventory();
+            
+            // Setup SKU Input Enter key listener
+            skuInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    handleAddSku();
+                }
+            });
+
+            // Focus SKU input on load
+            skuInput.focus();
+        }
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').innerText = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // --- Tab Switching Logic ---
+        function switchTab(tab) {
+            const checkoutView = document.getElementById('checkout-view');
+            const inventoryView = document.getElementById('inventory-view');
+            const tabCheckout = document.getElementById('tab-checkout');
+            const tabInventory = document.getElementById('tab-inventory');
+
+            if (tab === 'checkout') {
+                // Show Checkout
+                checkoutView.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
+                checkoutView.classList.add('z-10');
+                inventoryView.classList.add('opacity-0', 'pointer-events-none', 'z-0');
+                inventoryView.classList.remove('z-10');
+                
+                // Update Tab styling
+                tabCheckout.className = "font-medium text-[#8b7e74] border-b-2 border-[#8b7e74] pb-1 transition-colors";
+                tabInventory.className = "font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors";
+                
+                // Auto focus SKU input when switching back
+                setTimeout(() => skuInput.focus(), 300);
+            } else {
+                // Show Inventory
+                inventoryView.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
+                inventoryView.classList.add('z-10');
+                checkoutView.classList.add('opacity-0', 'pointer-events-none', 'z-0');
+                checkoutView.classList.remove('z-10');
+                
+                // Update Tab styling
+                tabInventory.className = "font-medium text-[#8b7e74] border-b-2 border-[#8b7e74] pb-1 transition-colors";
+                tabCheckout.className = "font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors";
+            }
+        }
+
+        // --- Inventory Logic ---
+        function saveInventoryItem() {
+            const sku = document.getElementById('inv-sku').value.trim().toUpperCase();
+            const name = document.getElementById('inv-name').value.trim();
+            const origPrice = document.getElementById('inv-orig-price').value;
+            const price = parseInt(document.getElementById('inv-price').value);
+
+            if (!sku || !name || isNaN(price)) return;
+
+            // Check if SKU exists, update it instead of duplicate
+            const existingIndex = inventory.findIndex(item => item.sku === sku);
+            const newItem = {
+                sku, 
+                name, 
+                origPrice: origPrice ? parseInt(origPrice) : null, 
+                price 
+            };
+
+            if (existingIndex >= 0) {
+                inventory[existingIndex] = newItem;
+            } else {
+                inventory.push(newItem);
+            }
+
+            // Save and re-render
+            localStorage.setItem('adorable_pos_inventory', JSON.stringify(inventory));
+            renderInventory();
+            
+            // Reset form and focus SKU
+            document.getElementById('inventory-form').reset();
+            document.getElementById('inv-sku').focus();
+        }
+
+        function deleteInventoryItem(sku) {
+            if(confirm(`確定要刪除商品 ${sku} 嗎？`)) {
+                inventory = inventory.filter(item => item.sku !== sku);
+                localStorage.setItem('adorable_pos_inventory', JSON.stringify(inventory));
+                renderInventory();
+            }
+        }
+
+        function renderInventory() {
+            invCount.innerText = `共 ${inventory.length} 件`;
+            
+            if (inventory.length === 0) {
+                inventoryList.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center text-stone-400 py-20">
+                        <i class="ph ph-package text-5xl mb-3 opacity-50"></i>
+                        <p>尚未建立任何商品</p>
+                    </div>`;
+                return;
+            }
+
+            // Sort by SKU for better presentation
+            const sortedInventory = [...inventory].sort((a, b) => a.sku.localeCompare(b.sku));
+
+            inventoryList.innerHTML = sortedInventory.map(item => `
+                <div class="bg-white p-5 rounded-2xl border border-stone-100 shadow-sm flex flex-col relative group">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="bg-stone-100 text-stone-600 text-xs font-bold px-2.5 py-1 rounded-md tracking-wider">${item.sku}</span>
+                        <button onclick="deleteInventoryItem('${item.sku}')" class="text-stone-300 hover:text-red-400 transition-colors p-1">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                    <h3 class="font-medium text-stone-800 text-lg mb-4 line-clamp-2">${item.name}</h3>
+                    
+                    <div class="mt-auto flex items-end gap-2">
+                        <span class="text-xl font-bold text-stone-900">$${item.price.toLocaleString()}</span>
+                        ${item.origPrice ? `<span class="text-sm text-stone-400 line-through mb-0.5">$${item.origPrice.toLocaleString()}</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- Checkout Logic ---
+        function handleAddSku() {
+            const sku = skuInput.value.trim().toUpperCase();
+            if (!sku) return;
+
+            const product = inventory.find(item => item.sku === sku);
+            
+            if (product) {
+                // Success - hide error and add to cart
+                skuError.classList.add('opacity-0');
+                addToCart(product);
+                skuInput.value = ''; // clear input
+            } else {
+                // Error - show error message
+                skuError.classList.remove('opacity-0');
+                // Haptic feedback if on mobile
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            }
+            
+            skuInput.focus();
+        }
+
+        function addToCart(product) {
+            if (navigator.vibrate) navigator.vibrate(50); 
+
+            const existingItem = cart.find(item => item.sku === product.sku);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({ sku: product.sku, quantity: 1, ...product });
+            }
+            renderCart();
+            
+            setTimeout(() => {
+                cartContainer.scrollTop = cartContainer.scrollHeight;
+            }, 50);
+        }
+
+        function updateQuantity(sku, delta) {
+            const itemIndex = cart.findIndex(item => item.sku === sku);
+            if (itemIndex > -1) {
+                cart[itemIndex].quantity += delta;
+                if (cart[itemIndex].quantity <= 0) {
+                    cart.splice(itemIndex, 1);
+                }
+            }
+            renderCart();
+            skuInput.focus();
+        }
+
+        function removeFromCart(sku) {
+            cart = cart.filter(item => item.sku !== sku);
+            renderCart();
+            skuInput.focus();
+        }
+
+        function clearCart() {
+            cart = [];
+            renderCart();
+            skuInput.focus();
+        }
+
+        function renderCart() {
+            if (cart.length === 0) {
+                cartContainer.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-stone-300">
+                        <i class="ph ph-basket text-5xl mb-3"></i>
+                        <p class="text-sm font-medium">尚未加入商品</p>
+                    </div>`;
+                checkoutBtn.disabled = true;
+                cartTotalEl.innerText = '0';
+                return;
+            }
+
+            checkoutBtn.disabled = false;
+            let total = 0;
+
+            cartContainer.innerHTML = cart.map(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+
+                return `
+                <div class="flex items-center justify-between bg-white p-3.5 rounded-xl border border-stone-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] relative">
+                    <div class="flex-1 pr-3 overflow-hidden">
+                        <div class="flex items-center gap-1.5 mb-1">
+                            <span class="text-[10px] font-bold bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded tracking-wider">${item.sku}</span>
+                        </div>
+                        <h4 class="text-sm font-medium text-stone-800 truncate">${item.name}</h4>
+                        <p class="text-xs text-[#8b7e74] mt-0.5 font-medium">$${item.price.toLocaleString()}</p>
+                    </div>
+                    
+                    <div class="flex flex-col items-end gap-2 shrink-0">
+                        <button onclick="removeFromCart('${item.sku}')" class="text-stone-300 hover:text-red-400 absolute top-2 right-2">
+                            <i class="ph ph-x-circle text-lg"></i>
+                        </button>
+                        
+                        <div class="flex items-center gap-3 bg-stone-50 rounded-lg p-1 border border-stone-200 mt-4">
+                            <button onclick="updateQuantity('${item.sku}', -1)" class="w-7 h-7 flex items-center justify-center text-stone-500 hover:bg-white hover:text-stone-800 hover:shadow-sm rounded-md transition-all active:scale-90">
+                                <i class="ph ph-minus"></i>
+                            </button>
+                            <span class="w-4 text-center text-sm font-semibold">${item.quantity}</span>
+                            <button onclick="updateQuantity('${item.sku}', 1)" class="w-7 h-7 flex items-center justify-center text-stone-500 hover:bg-white hover:text-stone-800 hover:shadow-sm rounded-md transition-all active:scale-90">
+                                <i class="ph ph-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            cartTotalEl.innerText = total.toLocaleString();
+        }
+
+        // --- Checkout Finalization ---
+        function processCheckout() {
+            if (cart.length === 0) return;
+
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+            // Show UI Modal
+            modalTotal.innerText = `$${total.toLocaleString()}`;
+            successModal.classList.remove('hidden');
+            
+            // Trigger reflow
+            void successModal.offsetWidth;
+            successModal.classList.remove('opacity-0');
+            modalContent.classList.remove('scale-95');
+        }
+
+        function closeModal() {
+            successModal.classList.add('opacity-0');
+            modalContent.classList.add('scale-95');
+            
+            setTimeout(() => {
+                successModal.classList.add('hidden');
+                clearCart();
+            }, 300);
+        }
+
+        // Start App
+        window.onload = init;
+
+    </script>
+</body>
+</html>
