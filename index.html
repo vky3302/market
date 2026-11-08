@@ -347,11 +347,20 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Setup ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'adorable-pos';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
         // --- API & State Management ---
         const scriptURL = 'https://script.google.com/macros/s/AKfycbxR4UI2CoI6OicuCiDqX40JUdBb7mOz1rwHrnHzaTWL5ErsOQE9xIEVCojPP9mP146kYA/exec';
-        const STORAGE_KEY = 'adorable_inventory';
-        const STORAGE_KEY_SALES = 'adorable_sales';
         let inventory = [];
         let cart = [];
         let salesHistory = [];
@@ -374,29 +383,64 @@
         const inventoryList = document.getElementById('inventory-list');
         const invCount = document.getElementById('inv-count');
 
+        // --- Expose functions to window (since we are in a module) ---
+        window.switchTab = switchTab;
+        window.saveInventoryItem = saveInventoryItem;
+        window.deleteInventoryItem = deleteInventoryItem;
+        window.handleAddSku = handleAddSku;
+        window.clearCart = clearCart;
+        window.toggleDiscount = toggleDiscount;
+        window.updateQuantity = updateQuantity;
+        window.removeFromCart = removeFromCart;
+        window.processCheckout = processCheckout;
+        window.closeModal = closeModal;
+
         // --- Initialization ---
-        function init() {
-            const savedInventory = localStorage.getItem(STORAGE_KEY);
-            if (savedInventory) {
-                inventory = JSON.parse(savedInventory);
+        async function init() {
+            try {
+                // Auth required before Cloud Queries
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error('System Auth Error:', error);
+                return;
             }
-            
-            const savedSales = localStorage.getItem(STORAGE_KEY_SALES);
-            if (savedSales) {
-                salesHistory = JSON.parse(savedSales);
-            }
+
+            // Start Real-time Cloud Sync
+            setupRealtimeSync();
             
             updateTime();
             setInterval(updateTime, 60000);
             renderCart();
-            renderInventory();
-            renderOverview();
-            renderSales();
             
             skuInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') handleAddSku();
             });
             skuInput.focus();
+        }
+
+        function setupRealtimeSync() {
+            // Inventory Sync
+            const invCol = collection(db, 'artifacts', appId, 'public', 'data', 'inventory');
+            onSnapshot(invCol, (snapshot) => {
+                inventory = [];
+                snapshot.forEach(doc => inventory.push(doc.data()));
+                renderInventory();
+                renderOverview();
+            }, (error) => console.error('Inventory Sync Error:', error));
+
+            // Sales History Sync
+            const salesCol = collection(db, 'artifacts', appId, 'public', 'data', 'sales');
+            onSnapshot(salesCol, (snapshot) => {
+                salesHistory = [];
+                snapshot.forEach(doc => salesHistory.push(doc.data()));
+                // Sort descending (newest first)
+                salesHistory.sort((a, b) => b.timestampMs - a.timestampMs);
+                renderSales();
+            }, (error) => console.error('Sales Sync Error:', error));
         }
 
         function updateTime() {
@@ -439,8 +483,8 @@
             if (tab === 'sales') renderSales();
         }
 
-        // --- Inventory Logic ---
-        function saveInventoryItem() {
+        // --- Inventory Logic (Cloud) ---
+        async function saveInventoryItem() {
             const sku = document.getElementById('inv-sku').value.trim().toUpperCase();
             const category = document.getElementById('inv-category').value;
             const name = document.getElementById('inv-name').value.trim();
@@ -450,7 +494,6 @@
 
             if (!sku || !name || isNaN(price) || isNaN(quantity)) return;
 
-            const existingIndex = inventory.findIndex(item => item.sku === sku);
             const newItem = {
                 sku, 
                 category,
@@ -460,41 +503,36 @@
                 quantity
             };
 
-            if (existingIndex >= 0) {
-                inventory[existingIndex] = newItem;
-            } else {
-                inventory.push(newItem);
+            try {
+                // Sync to Cloud
+                const invRef = doc(db, 'artifacts', appId, 'public', 'data', 'inventory', sku);
+                await setDoc(invRef, newItem);
+                
+                document.getElementById('inventory-form').reset();
+                document.getElementById('inv-category').value = '服飾';
+                document.getElementById('inv-sku').focus();
+                
+                // Visual feedback
+                const btn = document.querySelector('#inventory-form button');
+                const origText = btn.innerHTML;
+                btn.innerHTML = '<i class="ph ph-check text-xl"></i> 已同步';
+                btn.classList.replace('bg-[#8b7e74]', 'bg-emerald-600');
+                setTimeout(() => {
+                    btn.innerHTML = origText;
+                    btn.classList.replace('bg-emerald-600', 'bg-[#8b7e74]');
+                }, 1000);
+            } catch(e) {
+                console.error("Save failed", e);
             }
-
-            saveToStorage();
-            renderInventory();
-            renderOverview();
-            
-            document.getElementById('inventory-form').reset();
-            // Restore default category
-            document.getElementById('inv-category').value = '服飾';
-            document.getElementById('inv-sku').focus();
-            
-            // Visual feedback
-            const btn = document.querySelector('#inventory-form button');
-            const origText = btn.innerHTML;
-            btn.innerHTML = '<i class="ph ph-check text-xl"></i> 已儲存';
-            btn.classList.replace('bg-[#8b7e74]', 'bg-emerald-600');
-            setTimeout(() => {
-                btn.innerHTML = origText;
-                btn.classList.replace('bg-emerald-600', 'bg-[#8b7e74]');
-            }, 1000);
         }
 
-        function deleteInventoryItem(sku) {
-            inventory = inventory.filter(item => item.sku !== sku);
-            saveToStorage();
-            renderInventory();
-            renderOverview();
-        }
-
-        function saveToStorage() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
+        async function deleteInventoryItem(sku) {
+            try {
+                const invRef = doc(db, 'artifacts', appId, 'public', 'data', 'inventory', sku);
+                await deleteDoc(invRef);
+            } catch(e) {
+                console.error("Delete failed", e);
+            }
         }
 
         function renderInventory() {
@@ -606,17 +644,11 @@
             setTimeout(() => skuError.classList.add('opacity-0'), 2500);
         }
 
-        function toggleDiscount(checkbox) {
-            discountEnabled = checkbox.checked;
-            renderCart();
-        }
-
         function addToCart(product) {
             const existingItem = cart.find(item => item.sku === product.sku);
             if (existingItem) {
                 existingItem.quantity += 1;
             } else {
-                // Ensure we only store what we need in the cart
                 cart.push({ sku: product.sku, category: product.category, name: product.name, price: product.price, quantity: 1 });
             }
             renderCart();
@@ -652,16 +684,11 @@
 
         function clearCart() {
             cart = [];
-            
-            // Reset discount toggle
             isDiscountEnabled = false;
             const toggleEl = document.getElementById('discount-toggle');
             if(toggleEl) toggleEl.checked = false;
-            
             renderCart();
             skuInput.focus();
-            
-            // Reset payment radio to first (Cash)
             document.querySelector('input[name="payment"][value="現金"]').checked = true;
         }
 
@@ -741,7 +768,6 @@
 
             cartTotalEl.innerText = finalTotal.toLocaleString();
             
-            // Show strikethrough original total if discounted
             if (isDiscountEnabled && originalTotal !== finalTotal) {
                 cartOriginalTotalEl.innerText = `$${originalTotal.toLocaleString()}`;
                 cartOriginalTotalEl.classList.remove('hidden');
@@ -750,7 +776,7 @@
             }
         }
 
-        // --- Checkout Finalization ---
+        // --- Checkout Finalization (Cloud Sync) ---
         async function processCheckout() {
             if (cart.length === 0) return;
 
@@ -767,7 +793,6 @@
                 }
             });
             
-            // Get selected payment method
             const paymentMethodInput = document.querySelector('input[name="payment"]:checked');
             const paymentMethod = paymentMethodInput ? paymentMethodInput.value : '現金';
             
@@ -777,10 +802,11 @@
             checkoutBtn.innerHTML = '<i class="ph ph-spinner animate-spin text-2xl"></i> 處理中...';
 
             try {
-                // Prepare Payload matching the Apps Script expectation
+                const timestampMs = Date.now();
                 const orderData = {
-                    orderId: 'ORD' + Date.now().toString().slice(-6),
+                    orderId: 'ORD' + timestampMs.toString().slice(-6),
                     timestamp: new Date().toLocaleString('zh-TW'),
+                    timestampMs: timestampMs, // Used for cloud sorting
                     paymentMethod: paymentMethod,
                     discountApplied: isDiscountEnabled,
                     originalTotal: originalTotal,
@@ -794,32 +820,27 @@
                     }))
                 };
 
-                // Fetch to Google Apps Script
-                await fetch(scriptURL, {
+                // 1. Deduct Inventory Quantities in Cloud
+                for (const cartItem of cart) {
+                    const invItem = inventory.find(i => i.sku === cartItem.sku);
+                    if (invItem) {
+                        const newQty = Math.max(0, invItem.quantity - cartItem.quantity);
+                        const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'inventory', cartItem.sku);
+                        await updateDoc(itemRef, { quantity: newQty });
+                    }
+                }
+
+                // 2. Add to Sales History in Cloud
+                const salesRef = doc(db, 'artifacts', appId, 'public', 'data', 'sales', orderData.orderId);
+                await setDoc(salesRef, orderData);
+
+                // 3. Webhook to Google Sheets (Backup for accounting, non-blocking)
+                fetch(scriptURL, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(orderData)
-                });
-
-                // Deduct Inventory Quantities
-                cart.forEach(cartItem => {
-                    const invItem = inventory.find(i => i.sku === cartItem.sku);
-                    if (invItem) {
-                        invItem.quantity -= cartItem.quantity;
-                        if (invItem.quantity < 0) invItem.quantity = 0;
-                    }
-                });
-                
-                // Add to Sales History
-                salesHistory.unshift(orderData);
-                localStorage.setItem(STORAGE_KEY_SALES, JSON.stringify(salesHistory));
-
-                // Save new state and update UI
-                saveToStorage();
-                renderInventory();
-                renderOverview();
-                renderSales();
+                }).catch(err => console.warn('Google Sheets sync skipped:', err));
 
                 // Show Success Modal
                 modalTotal.innerText = `$${finalTotal.toLocaleString()}`;
