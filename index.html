@@ -214,7 +214,8 @@
     </div>
 
     <script>
-        // --- State Management ---
+        // --- API & State Management ---
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxR4UI2CoI6OicuCiDqX40JUdBb7mOz1rwHrnHzaTWL5ErsOQE9xIEVCojPP9mP146kYA/exec';
         let inventory = [];
         let cart = [];
 
@@ -523,19 +524,48 @@
         }
 
         // --- Checkout Finalization ---
-        function processCheckout() {
+        async function processCheckout() {
             if (cart.length === 0) return;
 
             const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-            // Show UI Modal
-            modalTotal.innerText = `$${total.toLocaleString()}`;
-            successModal.classList.remove('hidden');
             
-            // Trigger reflow
-            void successModal.offsetWidth;
-            successModal.classList.remove('opacity-0');
-            modalContent.classList.remove('scale-95');
+            // Save original button state and set loading state
+            const originalBtnHTML = checkoutBtn.innerHTML;
+            checkoutBtn.disabled = true;
+            checkoutBtn.innerHTML = '<i class="ph ph-spinner animate-spin text-2xl"></i> 處理中...';
+
+            try {
+                // Prepare data for Google Apps Script
+                const formData = new FormData();
+                formData.append('cart', JSON.stringify(cart));
+                formData.append('total', total);
+
+                // Send data using Fetch API
+                const response = await fetch(scriptURL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // Show UI Modal on success
+                    modalTotal.innerText = `$${total.toLocaleString()}`;
+                    successModal.classList.remove('hidden');
+                    
+                    // Trigger reflow
+                    void successModal.offsetWidth;
+                    successModal.classList.remove('opacity-0');
+                    modalContent.classList.remove('scale-95');
+                } else {
+                    alert('結帳連線失敗，請稍後再試或檢查網路！');
+                }
+            } catch (error) {
+                console.error('Error!', error.message);
+                alert('結帳發生錯誤，請稍後再試！');
+            } finally {
+                // Restore button state
+                checkoutBtn.disabled = false;
+                checkoutBtn.innerHTML = originalBtnHTML;
+            }
         }
 
         function closeModal() {
