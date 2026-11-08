@@ -43,26 +43,29 @@
 <body class="h-screen w-screen overflow-hidden text-stone-800 flex flex-col no-select">
 
     <!-- Header -->
-    <header class="bg-white/80 backdrop-blur-md border-b border-stone-200 px-6 py-4 flex justify-between items-center shrink-0 z-50 shadow-sm relative">
-        <div class="flex items-center gap-2">
-            <i class="ph ph-storefront text-2xl text-stone-600"></i>
-            <h1 class="text-xl font-bold tracking-wide text-stone-700">Adörable lab <span class="text-sm font-normal text-stone-400 ml-2 hidden sm:inline">Market POS</span></h1>
+    <header class="bg-white/80 backdrop-blur-md border-b border-stone-200 px-4 md:px-6 py-3 md:py-4 flex flex-col md:flex-row justify-between items-center shrink-0 z-50 shadow-sm relative gap-3 md:gap-0">
+        <div class="flex w-full md:w-auto justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i class="ph ph-storefront text-2xl text-stone-600"></i>
+                <h1 class="text-lg md:text-xl font-bold tracking-wide text-stone-700">Adörable lab <span class="text-sm font-normal text-stone-400 ml-2 hidden lg:inline">Market POS</span></h1>
+            </div>
+            
+            <!-- 同步按鈕與時間 (手機與電腦共用) -->
+            <div class="flex items-center gap-3 text-xs md:text-sm text-stone-500 font-medium">
+                <button onclick="syncFromCloud()" id="sync-btn" class="flex items-center gap-1 md:gap-1.5 bg-stone-100 hover:bg-stone-200 px-2.5 py-1.5 rounded-lg transition-colors active:scale-95 text-stone-600">
+                    <i class="ph ph-arrows-clockwise text-base md:text-lg"></i>
+                    <span>同步</span>
+                </button>
+                <span id="current-time" class="hidden md:inline">00:00</span>
+            </div>
         </div>
         
-        <!-- Tab Navigation -->
-        <div class="flex gap-4 md:gap-8 text-sm md:text-base">
+        <!-- Tab Navigation (手機版支援橫向滑動) -->
+        <div class="flex gap-5 md:gap-8 text-sm md:text-base w-full md:w-auto overflow-x-auto no-scrollbar whitespace-nowrap pb-1 md:pb-0 px-1 md:px-0">
             <button onclick="switchTab('checkout')" id="tab-checkout" class="font-medium text-[#8b7e74] border-b-2 border-[#8b7e74] pb-1 transition-colors">結帳收銀</button>
             <button onclick="switchTab('inventory')" id="tab-inventory" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">庫存設定</button>
             <button onclick="switchTab('overview')" id="tab-overview" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">庫存總覽</button>
             <button onclick="switchTab('sales')" id="tab-sales" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">今日營收</button>
-        </div>
-
-        <div class="hidden md:flex items-center gap-4 text-sm text-stone-500 font-medium">
-            <button onclick="syncFromCloud()" id="sync-btn" class="flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg transition-colors active:scale-95 text-stone-600">
-                <i class="ph ph-arrows-clockwise text-lg"></i>
-                <span>同步雲端</span>
-            </button>
-            <span id="current-time">00:00</span>
         </div>
     </header>
 
