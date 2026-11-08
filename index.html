@@ -313,6 +313,7 @@
                                     <th class="p-4 font-semibold w-24">付款方式</th>
                                     <th class="p-4 font-semibold">售出商品明細</th>
                                     <th class="p-4 font-semibold text-right w-32">訂單金額</th>
+                                    <th class="p-4 font-semibold w-16 text-center">操作</th>
                                 </tr>
                             </thead>
                             <tbody id="sales-list" class="divide-y divide-stone-100">
@@ -348,6 +349,22 @@
             <button onclick="closeModal()" class="w-full py-4 bg-stone-900 text-white rounded-xl font-medium text-lg hover:bg-stone-800 transition-colors active:scale-95 shadow-md">
                 完成 (下一筆)
             </button>
+        </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div id="delete-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center text-center" id="delete-modal-content">
+            <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-5">
+                <i class="ph ph-warning text-4xl font-bold"></i>
+            </div>
+            <h3 class="text-xl font-bold text-stone-800 mb-2">確定要刪除這筆訂單？</h3>
+            <p class="text-stone-500 mb-6 text-sm">刪除後，商品庫存將會自動加回。<br><span class="text-emerald-500 font-medium">雲端表單紀錄也會一併自動刪除</span></p>
+            
+            <div class="flex gap-3 w-full">
+                <button onclick="closeDeleteModal()" class="flex-1 py-3 bg-stone-100 text-stone-600 rounded-xl font-medium hover:bg-stone-200 transition-colors active:scale-95">取消</button>
+                <button onclick="executeDeleteSale()" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors active:scale-95 shadow-md">確定刪除</button>
+            </div>
         </div>
     </div>
 
@@ -442,6 +459,8 @@
         const modalTotal = document.getElementById('modal-total');
         const modalPayment = document.getElementById('modal-payment');
         const checkoutError = document.getElementById('checkout-error');
+        
+        let orderToDelete = null; // 用來暫存準備刪除的訂單 ID
         
         const skuInput = document.getElementById('sku-input');
         const skuError = document.getElementById('sku-error');
@@ -914,6 +933,66 @@
             }, 300);
         }
 
+        // --- 刪除訂單相關功能 ---
+        function promptDeleteSale(orderId) {
+            orderToDelete = orderId;
+            const modal = document.getElementById('delete-modal');
+            const content = document.getElementById('delete-modal-content');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            content.classList.remove('scale-95');
+        }
+
+        function closeDeleteModal() {
+            const modal = document.getElementById('delete-modal');
+            const content = document.getElementById('delete-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                orderToDelete = null;
+            }, 300);
+        }
+
+        function executeDeleteSale() {
+            if (!orderToDelete) return;
+            
+            // 找出要刪除的訂單，並將庫存加回去
+            const order = salesHistory.find(o => o.orderId === orderToDelete);
+            if (order && order.items) {
+                order.items.forEach(item => {
+                    const invIndex = inventory.findIndex(i => i.sku === item.sku);
+                    if (invIndex > -1) {
+                        inventory[invIndex].quantity += item.qty; // 恢復庫存
+                    }
+                });
+                syncToCloudInventory(); // 同步恢復後的庫存到雲端
+            }
+
+            // 從本地紀錄中移除
+            salesHistory = salesHistory.filter(o => o.orderId !== orderToDelete);
+            saveToLocal();
+            
+            // 重新渲染畫面
+            renderInventory();
+            renderOverview();
+            renderSales();
+            
+            // 關閉視窗
+            closeDeleteModal();
+            
+            // 嘗試通知 Google 表單刪除該筆訂單 (若未更新 GAS，這步會被忽略)
+            fetch(scriptURL, {
+                method: 'POST',
+                redirect: 'follow',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'delete_sale', orderId: orderToDelete })
+            }).catch(e => console.warn('雲端刪除失敗', e));
+        }
+
         function renderSales() {
             const salesList = document.getElementById('sales-list');
             const totalRevenueEl = document.getElementById('sales-total-revenue');
@@ -944,17 +1023,23 @@
                 
                 let itemsHtml = '';
                 if (Array.isArray(order.items)) {
-                    // 本地剛結帳的格式
+                    // 本地剛結帳的格式 (新增個別金額顯示)
                     itemsHtml = order.items.map(item => {
                         totalItems += item.qty;
-                        return `<div class="text-sm text-stone-700 mb-1">
-                            <span class="text-stone-400 mr-2">[${item.sku}]</span>
-                            ${item.name} <span class="font-bold text-stone-800 ml-1">x${item.qty}</span>
+                        let itemTotal = item.price * item.qty;
+                        return `<div class="text-sm text-stone-700 mb-1 flex justify-between items-center gap-4">
+                            <div>
+                                <span class="text-stone-400 mr-1">[${item.sku}]</span>
+                                ${item.name} <span class="font-bold text-stone-800 ml-1">x${item.qty}</span>
+                            </div>
+                            <div class="text-stone-500 font-medium">$${itemTotal.toLocaleString()}</div>
                         </div>`;
                     }).join('');
                 } else if (order.itemsDetailStr) {
                     // 從 Google 表單抓下來的格式
-                    itemsHtml = `<div class="text-sm text-stone-700 whitespace-pre-line">${order.itemsDetailStr}</div>`;
+                    itemsHtml = order.itemsDetailStr.split('\n').map(line => 
+                        `<div class="text-sm text-stone-700 mb-1">${line}</div>`
+                    ).join('');
                 }
 
                 const paymentBadgeColor = order.paymentMethod === 'LINE Pay' ? 'bg-[#06C755]/10 text-[#06C755] border-[#06C755]/20' : 
@@ -978,6 +1063,11 @@
                     </td>
                     <td class="p-4 align-top text-right">
                         <div class="text-lg font-bold text-stone-900">$${order.finalTotal.toLocaleString()}</div>
+                    </td>
+                    <td class="p-4 align-top text-center">
+                        <button onclick="promptDeleteSale('${order.orderId}')" class="text-stone-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all active:scale-95">
+                            <i class="ph ph-trash text-lg"></i>
+                        </button>
                     </td>
                 </tr>
                 `;
