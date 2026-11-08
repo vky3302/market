@@ -54,6 +54,7 @@
             <button onclick="switchTab('checkout')" id="tab-checkout" class="font-medium text-[#8b7e74] border-b-2 border-[#8b7e74] pb-1 transition-colors">結帳收銀</button>
             <button onclick="switchTab('inventory')" id="tab-inventory" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">庫存設定</button>
             <button onclick="switchTab('overview')" id="tab-overview" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">庫存總覽</button>
+            <button onclick="switchTab('sales')" id="tab-sales" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">今日營收</button>
         </div>
 
         <div class="hidden md:block text-sm text-stone-500 font-medium" id="current-time">
@@ -104,7 +105,10 @@
                 <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-3 bg-stone-50/50" id="cart-container">
                     <!-- Cart items injected here -->
                 </div>
-                    <div class="mb-5">
+                
+                <!-- 底部結帳區塊 (新增外層 wrapper 增加 padding 與間距) -->
+                <div class="p-6 bg-white border-t border-stone-100 shrink-0 flex flex-col gap-4">
+                    <div>
                         <p class="text-xs font-semibold text-stone-400 mb-2 uppercase tracking-wider">結帳方式</p>
                         <div class="flex gap-2">
                             <label class="flex-1 cursor-pointer select-none">
@@ -129,7 +133,7 @@
                     </div>
 
                     <!-- Discount Toggle -->
-                    <div class="flex justify-between items-center bg-rose-50/50 border border-rose-100 p-3 rounded-xl mb-4">
+                    <div class="flex justify-between items-center bg-rose-50/50 border border-rose-100 p-3 rounded-xl">
                         <div class="flex items-center gap-2">
                             <i class="ph ph-tag text-rose-400 text-lg"></i>
                             <span class="text-sm font-medium text-stone-700">服飾/包包 95折活動</span>
@@ -140,8 +144,8 @@
                         </div>
                     </div>
 
-                    <div class="flex justify-between items-end mb-4 px-1">
-                        <span class="text-stone-500 font-medium">總計金額</span>
+                    <div class="flex justify-between items-end px-1 mt-2">
+                        <span class="text-stone-500 font-medium mb-1">總計金額</span>
                         <div class="text-right flex flex-col items-end gap-1">
                             <span id="cart-original-total" class="text-sm text-stone-400 font-medium line-through hidden">0</span>
                             <div class="flex items-baseline gap-1">
@@ -151,9 +155,9 @@
                         </div>
                     </div>
                     
-                    <p id="checkout-error" class="text-red-500 text-sm text-center mb-3 hidden">結帳失敗，請重試。</p>
+                    <p id="checkout-error" class="text-red-500 text-sm text-center hidden m-0">結帳失敗，請重試。</p>
                     
-                    <button id="checkout-btn" onclick="processCheckout()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-medium text-xl py-4 rounded-2xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2" disabled>
+                    <button id="checkout-btn" onclick="processCheckout()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-medium text-xl py-4 rounded-2xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 mt-1" disabled>
                         <i class="ph ph-check-circle text-2xl"></i>
                         完成結帳
                     </button>
@@ -162,62 +166,73 @@
         </div>
 
         <!-- ==================== INVENTORY VIEW ==================== -->
-        <div id="inventory-view" class="absolute inset-0 flex flex-col md:flex-row w-full h-full opacity-0 pointer-events-none z-0 bg-stone-50">
+        <div id="inventory-view" class="absolute inset-0 flex flex-col w-full h-full opacity-0 pointer-events-none z-0 bg-stone-50 overflow-y-auto custom-scroll">
             
-                <h2 class="text-xl font-semibold mb-6 text-stone-800 flex items-center gap-2">
-                    <i class="ph ph-plus-circle text-[#8b7e74]"></i> 新增 / 編輯商品
-                </h2>
-                
-                <form id="inventory-form" class="space-y-4" onsubmit="event.preventDefault(); saveInventoryItem();">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-stone-600 mb-1">商品編號 (SKU) *</label>
-                            <input type="text" id="inv-sku" required class="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 uppercase transition-colors placeholder:text-stone-300" placeholder="例如：A01">
+            <!-- Top: Add/Edit Form -->
+            <section class="p-6 md:p-8 bg-white border-b border-stone-200 shadow-sm shrink-0 relative z-10">
+                <div class="max-w-4xl mx-auto">
+                    <h2 class="text-xl font-semibold mb-6 text-stone-800 flex items-center gap-2">
+                        <i class="ph ph-plus-circle text-[#8b7e74]"></i> 新增 / 編輯商品
+                    </h2>
+                    
+                    <form id="inventory-form" class="space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-4 items-end" onsubmit="event.preventDefault(); saveInventoryItem();">
+                        
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">編號 (SKU) *</label>
+                            <input type="text" id="inv-sku" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 uppercase transition-colors placeholder:text-stone-300" placeholder="例如：A01">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-stone-600 mb-1">商品類別 *</label>
-                            <select id="inv-category" required class="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors text-stone-700">
+                        
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">類別 *</label>
+                            <select id="inv-category" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors text-stone-700">
                                 <option value="服飾">服飾</option>
                                 <option value="包包">包包</option>
                                 <option value="配件">配件</option>
                                 <option value="小物">小物</option>
                             </select>
                         </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-600 mb-1">品項名稱 *</label>
-                        <input type="text" id="inv-name" required class="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="例如：麂皮幹部外套">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-stone-600 mb-1">原價 (選填)</label>
-                            <input type="number" id="inv-orig-price" min="0" class="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="0">
+                        
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">品項名稱 *</label>
+                            <input type="text" id="inv-name" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="例如：麂皮幹部外套">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-stone-600 mb-1">市集售價 *</label>
-                            <input type="number" id="inv-price" required min="0" class="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="0">
+                        
+                        <div class="grid grid-cols-2 gap-3 md:col-span-3">
+                            <div>
+                                <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">原價</label>
+                                <input type="number" id="inv-orig-price" min="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="0">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">售價 *</label>
+                                <input type="number" id="inv-price" required min="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="0">
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-600 mb-1">數量 *</label>
-                        <input type="number" id="inv-qty" required min="0" class="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors font-bold text-lg" placeholder="0">
-                    </div>
-                    
-                    <button type="submit" class="w-full mt-2 bg-[#8b7e74] text-white p-3.5 rounded-xl font-medium text-lg hover:bg-[#7a6f65] active:scale-95 transition-all shadow-sm flex justify-center items-center gap-2">
-                        <i class="ph ph-floppy-disk text-xl"></i> 儲存商品
-                    </button>
-                </form>
+
+                        <div class="md:col-span-1">
+                            <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">數量 *</label>
+                            <input type="number" id="inv-qty" required min="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors font-bold text-center" placeholder="0">
+                        </div>
+                        
+                        <div class="md:col-span-1">
+                            <button type="submit" class="w-full h-[46px] bg-[#8b7e74] text-white rounded-xl font-medium hover:bg-[#7a6f65] active:scale-95 transition-all shadow-sm flex justify-center items-center">
+                                <i class="ph ph-floppy-disk text-xl"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </section>
 
-            <!-- Right: Inventory List (Visual) -->
-            <section class="flex-1 p-6 md:p-8 overflow-y-auto custom-scroll">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-stone-700">快速庫存視圖</h2>
-                    <span class="text-sm text-stone-500 bg-white px-3 py-1 rounded-full border border-stone-200 shadow-sm font-medium" id="inv-count">共 0 件</span>
-                </div>
-                
-                <div id="inventory-list" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                    <!-- Cards injected here -->
+            <!-- Bottom: Inventory List (Visual) -->
+            <section class="flex-1 p-6 md:p-8 overflow-y-auto">
+                <div class="max-w-4xl mx-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-stone-700">快速庫存視圖</h2>
+                        <span class="text-sm text-stone-500 bg-white px-3 py-1 rounded-full border border-stone-200 shadow-sm font-medium" id="inv-count">共 0 件</span>
+                    </div>
+                    
+                    <div id="inventory-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <!-- Cards injected here -->
+                    </div>
                 </div>
             </section>
         </div>
@@ -249,6 +264,55 @@
                             </thead>
                             <tbody id="overview-list" class="divide-y divide-stone-100">
                                 <!-- Table rows injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SALES VIEW ==================== -->
+        <div id="sales-view" class="absolute inset-0 flex flex-col w-full h-full opacity-0 pointer-events-none z-0 bg-stone-50 overflow-y-auto custom-scroll p-6 md:p-10">
+            <div class="max-w-6xl mx-auto w-full">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white border border-stone-200 shadow-sm rounded-xl flex items-center justify-center">
+                            <i class="ph ph-chart-line-up text-xl text-[#8b7e74]"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-stone-800">今日營收與明細</h2>
+                    </div>
+                </div>
+                
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+                        <p class="text-stone-500 text-sm font-medium mb-1">總營業額 (TWD)</p>
+                        <p class="text-3xl font-bold text-stone-900" id="sales-total-revenue">$0</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+                        <p class="text-stone-500 text-sm font-medium mb-1">總訂單數</p>
+                        <p class="text-3xl font-bold text-stone-900" id="sales-total-orders">0</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+                        <p class="text-stone-500 text-sm font-medium mb-1">售出商品總數</p>
+                        <p class="text-3xl font-bold text-stone-900" id="sales-total-items">0</p>
+                    </div>
+                </div>
+
+                <!-- Sales List -->
+                <div class="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-stone-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[700px]">
+                            <thead>
+                                <tr class="bg-stone-100/50 text-stone-500 text-sm border-b border-stone-200">
+                                    <th class="p-4 font-semibold w-40">時間 / 訂單編號</th>
+                                    <th class="p-4 font-semibold w-24">付款方式</th>
+                                    <th class="p-4 font-semibold">售出商品明細</th>
+                                    <th class="p-4 font-semibold text-right w-32">訂單金額</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sales-list" class="divide-y divide-stone-100">
+                                <!-- Sales rows injected here -->
                             </tbody>
                         </table>
                     </div>
@@ -287,8 +351,10 @@
         // --- API & State Management ---
         const scriptURL = 'https://script.google.com/macros/s/AKfycbxR4UI2CoI6OicuCiDqX40JUdBb7mOz1rwHrnHzaTWL5ErsOQE9xIEVCojPP9mP146kYA/exec';
         const STORAGE_KEY = 'adorable_inventory';
+        const STORAGE_KEY_SALES = 'adorable_sales';
         let inventory = [];
         let cart = [];
+        let salesHistory = [];
         let isDiscountEnabled = false;
 
         // --- DOM Elements ---
@@ -315,11 +381,17 @@
                 inventory = JSON.parse(savedInventory);
             }
             
+            const savedSales = localStorage.getItem(STORAGE_KEY_SALES);
+            if (savedSales) {
+                salesHistory = JSON.parse(savedSales);
+            }
+            
             updateTime();
             setInterval(updateTime, 60000);
             renderCart();
             renderInventory();
             renderOverview();
+            renderSales();
             
             skuInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') handleAddSku();
@@ -337,12 +409,14 @@
             const views = {
                 checkout: document.getElementById('checkout-view'),
                 inventory: document.getElementById('inventory-view'),
-                overview: document.getElementById('overview-view')
+                overview: document.getElementById('overview-view'),
+                sales: document.getElementById('sales-view')
             };
             const tabs = {
                 checkout: document.getElementById('tab-checkout'),
                 inventory: document.getElementById('tab-inventory'),
-                overview: document.getElementById('tab-overview')
+                overview: document.getElementById('tab-overview'),
+                sales: document.getElementById('tab-sales')
             };
 
             const activeClass = "font-medium text-[#8b7e74] border-b-2 border-[#8b7e74] pb-1 transition-colors";
@@ -362,6 +436,7 @@
 
             if (tab === 'checkout') setTimeout(() => skuInput.focus(), 300);
             if (tab === 'overview') renderOverview();
+            if (tab === 'sales') renderSales();
         }
 
         // --- Inventory Logic ---
@@ -735,11 +810,16 @@
                         if (invItem.quantity < 0) invItem.quantity = 0;
                     }
                 });
+                
+                // Add to Sales History
+                salesHistory.unshift(orderData);
+                localStorage.setItem(STORAGE_KEY_SALES, JSON.stringify(salesHistory));
 
                 // Save new state and update UI
                 saveToStorage();
                 renderInventory();
                 renderOverview();
+                renderSales();
 
                 // Show Success Modal
                 modalTotal.innerText = `$${finalTotal.toLocaleString()}`;
@@ -767,6 +847,73 @@
                 successModal.classList.add('hidden');
                 clearCart();
             }, 300);
+        }
+
+        function renderSales() {
+            const salesList = document.getElementById('sales-list');
+            const totalRevenueEl = document.getElementById('sales-total-revenue');
+            const totalOrdersEl = document.getElementById('sales-total-orders');
+            const totalItemsEl = document.getElementById('sales-total-items');
+            
+            if (!salesList) return;
+
+            let totalRevenue = 0;
+            let totalItems = 0;
+
+            if (salesHistory.length === 0) {
+                salesList.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="p-12 text-center text-stone-400 bg-white">
+                            <i class="ph ph-receipt text-4xl mb-3 block opacity-30"></i>
+                            今日尚無任何結帳紀錄
+                        </td>
+                    </tr>`;
+                totalRevenueEl.innerText = '$0';
+                totalOrdersEl.innerText = '0';
+                totalItemsEl.innerText = '0';
+                return;
+            }
+
+            salesList.innerHTML = salesHistory.map(order => {
+                totalRevenue += order.finalTotal;
+                
+                const itemsHtml = order.items.map(item => {
+                    totalItems += item.qty;
+                    return `<div class="text-sm text-stone-700 mb-1">
+                        <span class="text-stone-400 mr-2">[${item.sku}]</span>
+                        ${item.name} <span class="font-bold text-stone-800 ml-1">x${item.qty}</span>
+                    </div>`;
+                }).join('');
+
+                const paymentBadgeColor = order.paymentMethod === 'LINE Pay' ? 'bg-[#06C755]/10 text-[#06C755] border-[#06C755]/20' : 
+                                          order.paymentMethod === '轉帳' ? 'bg-[#8b7e74]/10 text-[#8b7e74] border-[#8b7e74]/20' : 
+                                          'bg-stone-100 text-stone-600 border-stone-200';
+
+                return `
+                <tr class="hover:bg-stone-50/80 transition-colors bg-white">
+                    <td class="p-4 align-top">
+                        <div class="text-sm font-medium text-stone-800 mb-1">${order.timestamp.split(' ')[1] || order.timestamp}</div>
+                        <div class="text-[10px] text-stone-400 tracking-wider">${order.orderId}</div>
+                    </td>
+                    <td class="p-4 align-top">
+                        <span class="px-2.5 py-1 rounded-md text-xs font-bold border ${paymentBadgeColor}">
+                            ${order.paymentMethod}
+                        </span>
+                    </td>
+                    <td class="p-4 align-top">
+                        ${itemsHtml}
+                        ${order.discountApplied ? '<div class="text-xs text-rose-500 mt-1 font-medium"><i class="ph ph-tag"></i> 已套用 95 折</div>' : ''}
+                    </td>
+                    <td class="p-4 align-top text-right">
+                        <div class="text-lg font-bold text-stone-900">$${order.finalTotal.toLocaleString()}</div>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+
+            totalRevenueEl.innerText = '$' + totalRevenue.toLocaleString();
+            totalOrdersEl.innerText = salesHistory.length.toString();
+            totalItemsEl.innerText = totalItems.toString();
         }
 
         window.onload = init;
