@@ -879,6 +879,7 @@
                 // 3. 拋送至 Google Sheets (背景執行)
                 fetch(scriptURL, {
                     method: 'POST',
+                    redirect: 'follow', // 補上這個關鍵參數，處理 Google 轉址
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action: 'checkout', data: orderData }) // 修改送出格式
                 }).catch(err => console.warn('Google Sheets sync skipped:', err));
