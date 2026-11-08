@@ -184,7 +184,7 @@
                         
                         <div class="md:col-span-2">
                             <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">類別 *</label>
-                            <select id="inv-category" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors text-stone-700">
+                            <select id="inv-category" onchange="autoGenerateSKU()" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors text-stone-700">
                                 <option value="服飾">服飾</option>
                                 <option value="包包">包包</option>
                                 <option value="配件">配件</option>
@@ -322,7 +322,7 @@
     </main>
 
     <!-- Success Modal -->
-    <div id="success-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div id="success-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center text-center" id="modal-content">
             <div class="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-5">
                 <i class="ph ph-check text-4xl font-bold"></i>
@@ -347,23 +347,14 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // --- Firebase Setup ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'adorable-pos';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
+    <script>
         // --- API & State Management ---
         const scriptURL = 'https://script.google.com/macros/s/AKfycbxR4UI2CoI6OicuCiDqX40JUdBb7mOz1rwHrnHzaTWL5ErsOQE9xIEVCojPP9mP146kYA/exec';
-        let inventory = [];
+        
+        // 讀取本地端資料 (穩定版：不依賴外部資料庫，資料存在這台裝置上)
+        let inventory = JSON.parse(localStorage.getItem('adorable_inventory')) || [];
         let cart = [];
-        let salesHistory = [];
+        let salesHistory = JSON.parse(localStorage.getItem('adorable_sales')) || [];
         let isDiscountEnabled = false;
 
         // --- DOM Elements ---
@@ -383,64 +374,28 @@
         const inventoryList = document.getElementById('inventory-list');
         const invCount = document.getElementById('inv-count');
 
-        // --- Expose functions to window (since we are in a module) ---
-        window.switchTab = switchTab;
-        window.saveInventoryItem = saveInventoryItem;
-        window.deleteInventoryItem = deleteInventoryItem;
-        window.handleAddSku = handleAddSku;
-        window.clearCart = clearCart;
-        window.toggleDiscount = toggleDiscount;
-        window.updateQuantity = updateQuantity;
+        // --- Data Persistence ---
+        function saveToLocal() {
+            localStorage.setItem('adorable_inventory', JSON.stringify(inventory));
+        }
         window.removeFromCart = removeFromCart;
         window.processCheckout = processCheckout;
         window.closeModal = closeModal;
+        window.autoGenerateSKU = autoGenerateSKU;
 
         // --- Initialization ---
-        async function init() {
-            try {
-                // Auth required before Cloud Queries
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error('System Auth Error:', error);
-                return;
-            }
-
-            // Start Real-time Cloud Sync
-            setupRealtimeSync();
-            
+        function init() {
             updateTime();
             setInterval(updateTime, 60000);
             renderCart();
+            renderInventory();
+            renderOverview();
+            renderSales();
             
             skuInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') handleAddSku();
             });
             skuInput.focus();
-        }
-
-        function setupRealtimeSync() {
-            // Inventory Sync
-            const invCol = collection(db, 'artifacts', appId, 'public', 'data', 'inventory');
-            onSnapshot(invCol, (snapshot) => {
-                inventory = [];
-                snapshot.forEach(doc => inventory.push(doc.data()));
-                renderInventory();
-                renderOverview();
-            }, (error) => console.error('Inventory Sync Error:', error));
-
-            // Sales History Sync
-            const salesCol = collection(db, 'artifacts', appId, 'public', 'data', 'sales');
-            onSnapshot(salesCol, (snapshot) => {
-                salesHistory = [];
-                snapshot.forEach(doc => salesHistory.push(doc.data()));
-                // Sort descending (newest first)
-                salesHistory.sort((a, b) => b.timestampMs - a.timestampMs);
-                renderSales();
-            }, (error) => console.error('Sales Sync Error:', error));
         }
 
         function updateTime() {
@@ -479,60 +434,90 @@
             }
 
             if (tab === 'checkout') setTimeout(() => skuInput.focus(), 300);
+            if (tab === 'inventory') {
+                if (!document.getElementById('inv-sku').value) autoGenerateSKU();
+            }
             if (tab === 'overview') renderOverview();
             if (tab === 'sales') renderSales();
         }
 
         // --- Inventory Logic (Cloud) ---
+        function autoGenerateSKU() {
+            const category = document.getElementById('inv-category').value;
+            const skuInput = document.getElementById('inv-sku');
+
+            // 類別對應的字首
+            const prefixMap = {
+                '服飾': 'A',
+                '包包': 'B',
+                '配件': 'C',
+                '小物': 'D'
+            };
+            const prefix = prefixMap[category] || 'X';
+
+            // 篩選目前該類別的庫存
+            const categoryItems = inventory.filter(item => item.category === category);
+            let maxNum = 0;
+
+            categoryItems.forEach(item => {
+                if (item.sku.startsWith(prefix)) {
+                    const match = item.sku.match(/\d+/);
+                    if (match) {
+                        const num = parseInt(match[0], 10);
+                        if (num > maxNum) maxNum = num;
+                    }
+                }
+            });
+
+            // 找出最大值並加 1，補齊兩位數
+            const nextNum = maxNum + 1;
+            skuInput.value = `${prefix}${nextNum.toString().padStart(2, '0')}`;
+        }
+
         async function saveInventoryItem() {
             const sku = document.getElementById('inv-sku').value.trim().toUpperCase();
             const category = document.getElementById('inv-category').value;
             const name = document.getElementById('inv-name').value.trim();
-            const origPrice = document.getElementById('inv-orig-price').value;
-            const price = parseInt(document.getElementById('inv-price').value);
-            const quantity = parseInt(document.getElementById('inv-qty').value);
+            const origPrice = parseInt(document.getElementById('inv-orig-price').value) || 0;
+            const price = parseInt(document.getElementById('inv-price').value) || 0;
+            const quantity = parseInt(document.getElementById('inv-qty').value) || 0;
 
-            if (!sku || !name || isNaN(price) || isNaN(quantity)) return;
+            if (!sku || !name || price < 0 || quantity < 0) return;
 
-            const newItem = {
-                sku, 
-                category,
-                name, 
-                origPrice: origPrice ? parseInt(origPrice) : null, 
-                price,
-                quantity
-            };
+            const existingIndex = inventory.findIndex(item => item.sku === sku);
+            const newItem = { sku, category, name, origPrice, price, quantity };
 
-            try {
-                // Sync to Cloud
-                const invRef = doc(db, 'artifacts', appId, 'public', 'data', 'inventory', sku);
-                await setDoc(invRef, newItem);
-                
-                document.getElementById('inventory-form').reset();
-                document.getElementById('inv-category').value = '服飾';
-                document.getElementById('inv-sku').focus();
-                
-                // Visual feedback
-                const btn = document.querySelector('#inventory-form button');
-                const origText = btn.innerHTML;
-                btn.innerHTML = '<i class="ph ph-check text-xl"></i> 已同步';
-                btn.classList.replace('bg-[#8b7e74]', 'bg-emerald-600');
-                setTimeout(() => {
-                    btn.innerHTML = origText;
-                    btn.classList.replace('bg-emerald-600', 'bg-[#8b7e74]');
-                }, 1000);
-            } catch(e) {
-                console.error("Save failed", e);
+            if (existingIndex > -1) {
+                inventory[existingIndex] = newItem;
+            } else {
+                inventory.push(newItem);
             }
+
+            saveToLocal();
+            renderInventory();
+            renderOverview();
+
+            document.getElementById('inventory-form').reset();
+            document.getElementById('inv-category').value = category; // 保留剛才選擇的類別
+            autoGenerateSKU(); // 自動產生下一號
+            document.getElementById('inv-name').focus(); // 游標自動跳到名稱
+
+            // Visual feedback
+            const btn = document.querySelector('#inventory-form button');
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-check text-xl"></i>';
+            btn.classList.replace('bg-[#8b7e74]', 'bg-emerald-600');
+            setTimeout(() => {
+                btn.innerHTML = origText;
+                btn.classList.replace('bg-emerald-600', 'bg-[#8b7e74]');
+            }, 1000);
         }
 
-        async function deleteInventoryItem(sku) {
-            try {
-                const invRef = doc(db, 'artifacts', appId, 'public', 'data', 'inventory', sku);
-                await deleteDoc(invRef);
-            } catch(e) {
-                console.error("Delete failed", e);
-            }
+        function deleteInventoryItem(sku) {
+            inventory = inventory.filter(item => item.sku !== sku);
+            saveToLocal();
+            renderInventory();
+            renderOverview();
         }
 
         function renderInventory() {
@@ -723,7 +708,6 @@
                 let itemFinalTotal = itemTotal;
                 let discountTag = '';
                 
-                // Apply 5% discount logic only to Clothes & Bags
                 if (isDiscountEnabled && (item.category === '服飾' || item.category === '包包')) {
                     itemFinalTotal = Math.round(itemTotal * 0.95);
                     finalTotal += itemFinalTotal;
@@ -776,7 +760,7 @@
             }
         }
 
-        // --- Checkout Finalization (Cloud Sync) ---
+        // --- Checkout Finalization ---
         async function processCheckout() {
             if (cart.length === 0) return;
 
@@ -802,17 +786,16 @@
             checkoutBtn.innerHTML = '<i class="ph ph-spinner animate-spin text-2xl"></i> 處理中...';
 
             try {
-                const timestampMs = Date.now();
+                // 整理訂單資料 (準備傳給 Google Sheets & 本地今日營收)
                 const orderData = {
-                    orderId: 'ORD' + timestampMs.toString().slice(-6),
+                    orderId: 'ORD-' + Date.now().toString().slice(-6),
                     timestamp: new Date().toLocaleString('zh-TW'),
-                    timestampMs: timestampMs, // Used for cloud sorting
                     paymentMethod: paymentMethod,
                     discountApplied: isDiscountEnabled,
                     originalTotal: originalTotal,
                     finalTotal: finalTotal,
-                    items: cart.map(i => ({ 
-                        sku: i.sku, 
+                    items: cart.map(i => ({
+                        sku: i.sku,
                         category: i.category || '未分類', 
                         name: i.name, 
                         qty: i.quantity, 
@@ -820,21 +803,23 @@
                     }))
                 };
 
-                // 1. Deduct Inventory Quantities in Cloud
-                for (const cartItem of cart) {
-                    const invItem = inventory.find(i => i.sku === cartItem.sku);
-                    if (invItem) {
-                        const newQty = Math.max(0, invItem.quantity - cartItem.quantity);
-                        const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'inventory', cartItem.sku);
-                        await updateDoc(itemRef, { quantity: newQty });
+                // 1. 扣除本地庫存
+                cart.forEach(cartItem => {
+                    const invIndex = inventory.findIndex(i => i.sku === cartItem.sku);
+                    if (invIndex > -1) {
+                        inventory[invIndex].quantity = Math.max(0, inventory[invIndex].quantity - cartItem.quantity);
                     }
-                }
+                });
+                saveToLocal();
+                renderInventory();
+                renderOverview();
 
-                // 2. Add to Sales History in Cloud
-                const salesRef = doc(db, 'artifacts', appId, 'public', 'data', 'sales', orderData.orderId);
-                await setDoc(salesRef, orderData);
+                // 2. 儲存至本地今日營收
+                salesHistory.unshift(orderData);
+                localStorage.setItem('adorable_sales', JSON.stringify(salesHistory));
+                renderSales();
 
-                // 3. Webhook to Google Sheets (Backup for accounting, non-blocking)
+                // 3. Webhook 傳送至 Google Sheets (背景傳送不卡頓)
                 fetch(scriptURL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -842,11 +827,12 @@
                     body: JSON.stringify(orderData)
                 }).catch(err => console.warn('Google Sheets sync skipped:', err));
 
-                // Show Success Modal
+                // 顯示成功畫面
                 modalTotal.innerText = `$${finalTotal.toLocaleString()}`;
                 modalPayment.innerText = paymentMethod;
                 
                 successModal.classList.remove('hidden');
+                successModal.classList.add('flex');
                 void successModal.offsetWidth;
                 successModal.classList.remove('opacity-0');
                 modalContent.classList.remove('scale-95');
@@ -866,6 +852,7 @@
             
             setTimeout(() => {
                 successModal.classList.add('hidden');
+                successModal.classList.remove('flex');
                 clearCart();
             }, 300);
         }
