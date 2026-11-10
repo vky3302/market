@@ -1,1087 +1,1043 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Adörable lab | Market POS</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-            background-color: #f7f6f3; 
-        }
-        
-        .custom-scroll::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scroll::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background-color: #d6d3d1;
-            border-radius: 20px;
-        }
-        
-        .no-select {
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        
-        /* Toggle Switch Styles */
-        .toggle-checkbox:checked {
-            transform: translateX(1.25rem) !important;
-            border-color: #f43f5e !important;
-        }
-        .toggle-checkbox:checked + .toggle-label {
-            background-color: #f43f5e !important;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Adörable lab | Market POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      background-color: #f7f6f3;
+    }
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background-color: #d6d3d1; border-radius: 20px; }
+    .no-select { user-select: none; -webkit-user-select: none; }
+    /* Toggle Switch Styles */
+    .toggle-checkbox:checked { transform: translateX(1.25rem) !important; border-color: #f43f5e !important; }
+    .toggle-checkbox:checked + .toggle-label { background-color: #f43f5e !important; }
+  </style>
 </head>
 <body class="h-[100dvh] w-screen overflow-hidden text-stone-800 flex flex-col no-select">
 
-    <!-- Header -->
-    <header class="bg-white/80 backdrop-blur-md border-b border-stone-200 px-4 md:px-6 py-3 md:py-4 flex flex-col md:flex-row justify-between items-center shrink-0 z-50 shadow-sm relative gap-3 md:gap-0">
-        <div class="flex w-full md:w-auto justify-between items-center">
+  <!-- Header -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-stone-200 px-4 md:px-6 py-3 md:py-4 flex flex-col md:flex-row justify-between items-center shrink-0 z-50 shadow-sm relative gap-3 md:gap-0">
+    <div class="flex w-full md:w-auto justify-between items-center">
+      <div class="flex items-center gap-2">
+        <i class="ph ph-storefront text-2xl text-stone-600"></i>
+        <h1 class="text-lg md:text-xl font-bold tracking-wide text-stone-700">Adörable lab <span class="text-sm font-normal text-stone-400 ml-2 hidden lg:inline">Market POS</span></h1>
+      </div>
+      <!-- 同步按鈕與時間 (手機與電腦共用) -->
+      <div class="flex items-center gap-3 text-xs md:text-sm text-stone-500 font-medium">
+        <button onclick="syncFromCloud()" id="sync-btn" class="flex items-center gap-1 md:gap-1.5 bg-stone-100 hover:bg-stone-200 px-2.5 py-1.5 rounded-lg transition-colors active:scale-95 text-stone-600">
+          <i class="ph ph-arrows-clockwise text-base md:text-lg"></i>
+          <span>同步</span>
+        </button>
+        <span id="current-time" class="hidden md:inline">00:00</span>
+      </div>
+    </div>
+    
+    <!-- Tab Navigation -->
+    <div class="flex gap-5 md:gap-8 text-sm md:text-base w-full md:w-auto overflow-x-auto no-scrollbar whitespace-nowrap pb-1 md:pb-0 px-1 md:px-0">
+      <button onclick="switchTab('checkout')" id="tab-checkout" class="font-medium text-[#8b7e74] border-b-2 border-[#8b7e74] pb-1 transition-colors">結帳收銀</button>
+      <button onclick="switchTab('inventory')" id="tab-inventory" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">庫存設定</button>
+      <button onclick="switchTab('overview')" id="tab-overview" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">庫存總覽</button>
+      <button onclick="switchTab('sales')" id="tab-sales" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">今日營收</button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex overflow-hidden relative">
+
+    <!-- ==================== CHECKOUT VIEW ==================== -->
+    <div id="checkout-view" class="absolute inset-0 flex flex-col md:flex-row w-full h-full transition-opacity duration-300 z-10 bg-stone-50 overflow-y-auto md:overflow-hidden">
+      <!-- Left: SKU Scanner/Input -->
+      <section class="w-full md:w-1/2 p-5 py-8 md:p-10 flex flex-col justify-center items-center shrink-0 md:overflow-y-auto">
+        <div class="w-full max-w-md bg-white p-6 md:p-8 rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-stone-100 flex flex-col gap-5 md:gap-6">
+          <div class="text-center">
+            <div class="w-14 h-14 md:w-16 md:h-16 bg-stone-50 rounded-2xl mx-auto flex items-center justify-center mb-3 md:mb-4">
+              <i class="ph ph-barcode text-3xl md:text-4xl text-[#8b7e74]"></i>
+            </div>
+            <h2 class="text-xl md:text-2xl font-bold text-stone-700">輸入商品編號</h2>
+            <p class="text-stone-400 text-xs md:text-sm mt-1">掃描或手動輸入後按 Enter</p>
+          </div>
+          <div class="flex flex-col gap-3 relative">
+            <div class="flex gap-2 w-full">
+              <input type="text" id="sku-input" class="flex-1 min-w-0 w-full text-xl md:text-2xl uppercase tracking-wider p-3 md:p-4 border-2 border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-4 focus:ring-[#8b7e74]/10 transition-all text-center placeholder:text-stone-300 placeholder:text-base md:placeholder:text-lg" placeholder="例: A01" autocomplete="off">
+              <button onclick="handleAddSku()" class="shrink-0 bg-[#8b7e74] text-white px-5 md:px-6 rounded-xl font-medium text-base md:text-lg hover:bg-[#7a6f65] active:scale-95 transition-all flex items-center justify-center shadow-sm whitespace-nowrap"> 加入 </button>
+            </div>
+            <p id="sku-error" class="text-red-400 text-xs md:text-sm text-center h-5 transition-opacity opacity-0 font-medium">找不到此商品或庫存不足</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Cart & Checkout -->
+      <section class="w-full md:w-1/2 bg-white border-t md:border-t-0 md:border-l border-stone-200 flex flex-col flex-1 shrink-0 md:shrink md:overflow-hidden shadow-[-4px_0_24px_rgba(0,0,0,0.02)] z-20">
+        <div class="p-4 md:p-5 border-b border-stone-100 flex justify-between items-center shrink-0">
+          <h2 class="text-base md:text-lg font-bold flex items-center gap-2 text-stone-800">
+            <i class="ph ph-shopping-cart-simple text-lg md:text-xl"></i> 目前購物車
+          </h2>
+          <button onclick="clearCart()" class="text-stone-400 hover:text-red-400 transition-colors flex items-center gap-1 text-sm bg-stone-50 px-3 py-1.5 rounded-lg active:scale-95">
+            <i class="ph ph-trash"></i> 清空
+          </button>
+        </div>
+        <div class="flex-1 min-h-[250px] md:min-h-0 overflow-y-auto custom-scroll p-4 space-y-3 bg-stone-50/50" id="cart-container">
+          <!-- Cart items injected here -->
+        </div>
+        
+        <div class="p-6 bg-white border-t border-stone-100 shrink-0 flex flex-col gap-4">
+          <div>
+            <p class="text-xs font-semibold text-stone-400 mb-2 uppercase tracking-wider">結帳方式</p>
+            <div class="flex gap-2">
+              <label class="flex-1 cursor-pointer select-none">
+                <input type="radio" name="payment" value="現金" class="peer hidden" checked>
+                <div class="text-center py-3 rounded-xl border border-stone-200 peer-checked:bg-[#8b7e74] peer-checked:text-white peer-checked:border-[#8b7e74] hover:bg-stone-50 transition-all text-sm font-medium text-stone-500 shadow-sm">
+                  <i class="ph ph-money text-lg block mb-0.5"></i>現金
+                </div>
+              </label>
+              <label class="flex-1 cursor-pointer select-none">
+                <input type="radio" name="payment" value="LINE Pay" class="peer hidden">
+                <div class="text-center py-3 rounded-xl border border-stone-200 peer-checked:bg-[#06C755] peer-checked:text-white peer-checked:border-[#06C755] hover:bg-stone-50 transition-all text-sm font-medium text-stone-500 shadow-sm">
+                  <i class="ph ph-chat-circle text-lg block mb-0.5"></i>LINE Pay
+                </div>
+              </label>
+              <label class="flex-1 cursor-pointer select-none">
+                <input type="radio" name="payment" value="轉帳" class="peer hidden">
+                <div class="text-center py-3 rounded-xl border border-stone-200 peer-checked:bg-[#8b7e74] peer-checked:text-white peer-checked:border-[#8b7e74] hover:bg-stone-50 transition-all text-sm font-medium text-stone-500 shadow-sm">
+                  <i class="ph ph-bank text-lg block mb-0.5"></i>轉帳
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Discount Toggle -->
+          <div class="flex justify-between items-center bg-rose-50/50 border border-rose-100 p-3 rounded-xl">
             <div class="flex items-center gap-2">
-                <i class="ph ph-storefront text-2xl text-stone-600"></i>
-                <h1 class="text-lg md:text-xl font-bold tracking-wide text-stone-700">Adörable lab <span class="text-sm font-normal text-stone-400 ml-2 hidden lg:inline">Market POS</span></h1>
+              <i class="ph ph-tag text-rose-400 text-lg"></i>
+              <span class="text-sm font-medium text-stone-700">服飾/包包 95折活動</span>
             </div>
-            
-            <!-- 同步按鈕與時間 (手機與電腦共用) -->
-            <div class="flex items-center gap-3 text-xs md:text-sm text-stone-500 font-medium">
-                <button onclick="syncFromCloud()" id="sync-btn" class="flex items-center gap-1 md:gap-1.5 bg-stone-100 hover:bg-stone-200 px-2.5 py-1.5 rounded-lg transition-colors active:scale-95 text-stone-600">
-                    <i class="ph ph-arrows-clockwise text-base md:text-lg"></i>
-                    <span>同步</span>
-                </button>
-                <span id="current-time" class="hidden md:inline">00:00</span>
+            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+              <input type="checkbox" name="toggle" id="discount-toggle" onchange="toggleDiscount()" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-[3px] border-stone-300 appearance-none cursor-pointer z-10 transition-all duration-200 ease-in-out" style="top: 0.1rem; left: 0.1rem;">
+              <label for="discount-toggle" class="toggle-label block overflow-hidden h-5.5 rounded-full bg-stone-300 cursor-pointer h-6 w-11 transition-colors duration-200 ease-in-out"></label>
             </div>
-        </div>
-        
-        <!-- Tab Navigation (手機版支援橫向滑動) -->
-        <div class="flex gap-5 md:gap-8 text-sm md:text-base w-full md:w-auto overflow-x-auto no-scrollbar whitespace-nowrap pb-1 md:pb-0 px-1 md:px-0">
-            <button onclick="switchTab('checkout')" id="tab-checkout" class="font-medium text-[#8b7e74] border-b-2 border-[#8b7e74] pb-1 transition-colors">結帳收銀</button>
-            <button onclick="switchTab('inventory')" id="tab-inventory" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">庫存設定</button>
-            <button onclick="switchTab('overview')" id="tab-overview" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">庫存總覽</button>
-            <button onclick="switchTab('sales')" id="tab-sales" class="font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors">今日營收</button>
-        </div>
-    </header>
+          </div>
 
-    <!-- Main Content -->
-    <main class="flex-1 flex overflow-hidden relative">
-        
-        <!-- ==================== CHECKOUT VIEW ==================== -->
-        <div id="checkout-view" class="absolute inset-0 flex flex-col md:flex-row w-full h-full transition-opacity duration-300 z-10 bg-stone-50 overflow-y-auto md:overflow-hidden">
-            
-            <!-- Left: SKU Scanner/Input -->
-            <section class="w-full md:w-1/2 p-5 py-8 md:p-10 flex flex-col justify-center items-center shrink-0 md:overflow-y-auto">
-                <div class="w-full max-w-md bg-white p-6 md:p-8 rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-stone-100 flex flex-col gap-5 md:gap-6">
-                    <div class="text-center">
-                        <div class="w-14 h-14 md:w-16 md:h-16 bg-stone-50 rounded-2xl mx-auto flex items-center justify-center mb-3 md:mb-4">
-                            <i class="ph ph-barcode text-3xl md:text-4xl text-[#8b7e74]"></i>
-                        </div>
-                        <h2 class="text-xl md:text-2xl font-bold text-stone-700">輸入商品編號</h2>
-                        <p class="text-stone-400 text-xs md:text-sm mt-1">掃描或手動輸入後按 Enter</p>
-                    </div>
-                    
-                    <div class="flex flex-col gap-3 relative">
-                        <div class="flex gap-2 w-full">
-                            <input type="text" id="sku-input" class="flex-1 min-w-0 w-full text-xl md:text-2xl uppercase tracking-wider p-3 md:p-4 border-2 border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-4 focus:ring-[#8b7e74]/10 transition-all text-center placeholder:text-stone-300 placeholder:text-base md:placeholder:text-lg" placeholder="例: A01" autocomplete="off">
-                            <button onclick="handleAddSku()" class="shrink-0 bg-[#8b7e74] text-white px-5 md:px-6 rounded-xl font-medium text-base md:text-lg hover:bg-[#7a6f65] active:scale-95 transition-all flex items-center justify-center shadow-sm whitespace-nowrap">
-                                加入
-                            </button>
-                        </div>
-                        <p id="sku-error" class="text-red-400 text-xs md:text-sm text-center h-5 transition-opacity opacity-0 font-medium">找不到此商品或庫存不足</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Right: Cart & Checkout -->
-            <section class="w-full md:w-1/2 bg-white border-t md:border-t-0 md:border-l border-stone-200 flex flex-col flex-1 shrink-0 md:shrink md:overflow-hidden shadow-[-4px_0_24px_rgba(0,0,0,0.02)] z-20">
-                <div class="p-4 md:p-5 border-b border-stone-100 flex justify-between items-center shrink-0">
-                    <h2 class="text-base md:text-lg font-bold flex items-center gap-2 text-stone-800">
-                        <i class="ph ph-shopping-cart-simple text-lg md:text-xl"></i> 目前購物車
-                    </h2>
-                    <button onclick="clearCart()" class="text-stone-400 hover:text-red-400 transition-colors flex items-center gap-1 text-sm bg-stone-50 px-3 py-1.5 rounded-lg active:scale-95">
-                        <i class="ph ph-trash"></i> 清空
-                    </button>
-                </div>
-
-                <div class="flex-1 min-h-[250px] md:min-h-0 overflow-y-auto custom-scroll p-4 space-y-3 bg-stone-50/50" id="cart-container">
-                    <!-- Cart items injected here -->
-                </div>
-                
-                <!-- 底部結帳區塊 (新增外層 wrapper 增加 padding 與間距) -->
-                <div class="p-6 bg-white border-t border-stone-100 shrink-0 flex flex-col gap-4">
-                    <div>
-                        <p class="text-xs font-semibold text-stone-400 mb-2 uppercase tracking-wider">結帳方式</p>
-                        <div class="flex gap-2">
-                            <label class="flex-1 cursor-pointer select-none">
-                                <input type="radio" name="payment" value="現金" class="peer hidden" checked>
-                                <div class="text-center py-3 rounded-xl border border-stone-200 peer-checked:bg-[#8b7e74] peer-checked:text-white peer-checked:border-[#8b7e74] hover:bg-stone-50 peer-checked:hover:bg-[#8b7e74] transition-all text-sm font-medium text-stone-500 shadow-sm">
-                                    <i class="ph ph-money text-lg block mb-0.5"></i>現金
-                                </div>
-                            </label>
-                            <label class="flex-1 cursor-pointer select-none">
-                                <input type="radio" name="payment" value="LINE Pay" class="peer hidden">
-                                <div class="text-center py-3 rounded-xl border border-stone-200 peer-checked:bg-[#06C755] peer-checked:text-white peer-checked:border-[#06C755] hover:bg-stone-50 peer-checked:hover:bg-[#06C755] transition-all text-sm font-medium text-stone-500 shadow-sm">
-                                    <i class="ph ph-chat-circle text-lg block mb-0.5"></i>LINE Pay
-                                </div>
-                            </label>
-                            <label class="flex-1 cursor-pointer select-none">
-                                <input type="radio" name="payment" value="轉帳" class="peer hidden">
-                                <div class="text-center py-3 rounded-xl border border-stone-200 peer-checked:bg-[#8b7e74] peer-checked:text-white peer-checked:border-[#8b7e74] hover:bg-stone-50 peer-checked:hover:bg-[#8b7e74] transition-all text-sm font-medium text-stone-500 shadow-sm">
-                                    <i class="ph ph-bank text-lg block mb-0.5"></i>轉帳
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Discount Toggle -->
-                    <div class="flex justify-between items-center bg-rose-50/50 border border-rose-100 p-3 rounded-xl">
-                        <div class="flex items-center gap-2">
-                            <i class="ph ph-tag text-rose-400 text-lg"></i>
-                            <span class="text-sm font-medium text-stone-700">服飾/包包 95折活動</span>
-                        </div>
-                        <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                            <input type="checkbox" name="toggle" id="discount-toggle" onchange="toggleDiscount()" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-[3px] border-stone-300 appearance-none cursor-pointer z-10 transition-all duration-200 ease-in-out" style="top: 0.1rem; left: 0.1rem;">
-                            <label for="discount-toggle" class="toggle-label block overflow-hidden h-5.5 rounded-full bg-stone-300 cursor-pointer h-6 w-11 transition-colors duration-200 ease-in-out"></label>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-between items-end px-1 mt-2">
-                        <span class="text-stone-500 font-medium mb-1">總計金額</span>
-                        <div class="text-right flex flex-col items-end gap-1">
-                            <span id="cart-original-total" class="text-sm text-stone-400 font-medium line-through hidden">0</span>
-                            <div class="flex items-baseline gap-1">
-                                <span class="text-sm text-stone-400 font-medium">TWD</span>
-                                <span class="text-4xl font-bold text-stone-800 tracking-tight" id="cart-total">0</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <p id="checkout-error" class="text-red-500 text-sm text-center hidden m-0">結帳失敗，請重試。</p>
-                    
-                    <button id="checkout-btn" onclick="processCheckout()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-medium text-xl py-4 rounded-2xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 mt-1" disabled>
-                        <i class="ph ph-check-circle text-2xl"></i>
-                        完成結帳
-                    </button>
-                </div>
-            </section>
-        </div>
-
-        <!-- ==================== INVENTORY VIEW ==================== -->
-        <div id="inventory-view" class="absolute inset-0 flex flex-col w-full h-full opacity-0 pointer-events-none z-0 bg-stone-50 overflow-y-auto custom-scroll">
-            
-            <!-- Top: Add/Edit Form -->
-            <section class="p-6 md:p-8 bg-white border-b border-stone-200 shadow-sm shrink-0 relative z-10">
-                <div class="max-w-4xl mx-auto">
-                    <h2 class="text-xl font-semibold mb-6 text-stone-800 flex items-center gap-2">
-                        <i class="ph ph-plus-circle text-[#8b7e74]"></i> 新增 / 編輯商品
-                    </h2>
-                    
-                    <form id="inventory-form" class="space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-4 items-end" onsubmit="event.preventDefault(); saveInventoryItem();">
-                        
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">編號 (SKU) *</label>
-                            <input type="text" id="inv-sku" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 uppercase transition-colors placeholder:text-stone-300" placeholder="例如：A01">
-                        </div>
-                        
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">類別 *</label>
-                            <select id="inv-category" onchange="autoGenerateSKU()" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors text-stone-700">
-                                <option value="服飾">服飾</option>
-                                <option value="包包">包包</option>
-                                <option value="配件">配件</option>
-                                <option value="小物">小物</option>
-                            </select>
-                        </div>
-                        
-                        <div class="md:col-span-3">
-                            <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">品項名稱 *</label>
-                            <input type="text" id="inv-name" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="例如：麂皮幹部外套">
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-3 md:col-span-3">
-                            <div>
-                                <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">原價</label>
-                                <input type="number" id="inv-orig-price" min="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="0">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">售價 *</label>
-                                <input type="number" id="inv-price" required min="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="0">
-                            </div>
-                        </div>
-
-                        <div class="md:col-span-1">
-                            <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">數量 *</label>
-                            <input type="number" id="inv-qty" required min="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors font-bold text-center" placeholder="0">
-                        </div>
-                        
-                        <div class="md:col-span-1">
-                            <button type="submit" class="w-full h-[46px] bg-[#8b7e74] text-white rounded-xl font-medium hover:bg-[#7a6f65] active:scale-95 transition-all shadow-sm flex justify-center items-center">
-                                <i class="ph ph-floppy-disk text-xl"></i>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </section>
-
-            <!-- Bottom: Inventory List (Visual) -->
-            <section class="p-6 md:p-8">
-                <div class="max-w-4xl mx-auto">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl font-bold text-stone-700">快速庫存視圖</h2>
-                        <span class="text-sm text-stone-500 bg-white px-3 py-1 rounded-full border border-stone-200 shadow-sm font-medium" id="inv-count">共 0 件</span>
-                    </div>
-                    
-                    <div id="inventory-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        <!-- Cards injected here -->
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- ==================== OVERVIEW VIEW ==================== -->
-        <div id="overview-view" class="absolute inset-0 flex flex-col w-full h-full opacity-0 pointer-events-none z-0 bg-stone-50 overflow-y-auto custom-scroll p-6 md:p-10">
-            <div class="max-w-6xl mx-auto w-full">
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-white border border-stone-200 shadow-sm rounded-xl flex items-center justify-center">
-                            <i class="ph ph-table text-xl text-[#8b7e74]"></i>
-                        </div>
-                        <h2 class="text-xl font-bold text-stone-800">全部商品總覽</h2>
-                    </div>
-                </div>
-                
-                <div class="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-stone-200 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse min-w-[700px]">
-                            <thead>
-                                <tr class="bg-stone-100/50 text-stone-500 text-sm border-b border-stone-200">
-                                    <th class="p-4 font-semibold w-32">編號 (SKU)</th>
-                                    <th class="p-4 font-semibold w-24">類別</th>
-                                    <th class="p-4 font-semibold">品項名稱</th>
-                                    <th class="p-4 font-semibold text-right w-32">原價</th>
-                                    <th class="p-4 font-semibold text-right w-32">售價</th>
-                                    <th class="p-4 font-semibold text-center w-32">數量</th>
-                                </tr>
-                            </thead>
-                            <tbody id="overview-list" class="divide-y divide-stone-100">
-                                <!-- Table rows injected here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+          <div class="flex justify-between items-end px-1 mt-2">
+            <span class="text-stone-500 font-medium mb-1">總計金額</span>
+            <div class="text-right flex flex-col items-end gap-1">
+              <span id="cart-original-total" class="text-sm text-stone-400 font-medium line-through hidden">0</span>
+              <div class="flex items-baseline gap-1">
+                <span class="text-sm text-stone-400 font-medium">TWD</span>
+                <span class="text-4xl font-bold text-stone-800 tracking-tight" id="cart-total">0</span>
+              </div>
             </div>
+          </div>
+
+          <p id="checkout-error" class="text-red-500 text-sm text-center hidden m-0">結帳失敗，請重試。</p>
+          <button id="checkout-btn" onclick="processCheckout()" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-medium text-xl py-4 rounded-2xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 mt-1" disabled>
+            <i class="ph ph-check-circle text-2xl"></i> 完成結帳
+          </button>
         </div>
+      </section>
+    </div>
 
-        <!-- ==================== SALES VIEW ==================== -->
-        <div id="sales-view" class="absolute inset-0 flex flex-col w-full h-full opacity-0 pointer-events-none z-0 bg-stone-50 overflow-y-auto custom-scroll p-6 md:p-10">
-            <div class="max-w-6xl mx-auto w-full">
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-white border border-stone-200 shadow-sm rounded-xl flex items-center justify-center">
-                            <i class="ph ph-chart-line-up text-xl text-[#8b7e74]"></i>
-                        </div>
-                        <h2 class="text-xl font-bold text-stone-800">今日營收與明細</h2>
-                    </div>
-                </div>
-                
-                <!-- Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-                        <p class="text-stone-500 text-sm font-medium mb-1">總營業額 (TWD)</p>
-                        <p class="text-3xl font-bold text-stone-900" id="sales-total-revenue">$0</p>
-                    </div>
-                    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-                        <p class="text-stone-500 text-sm font-medium mb-1">總訂單數</p>
-                        <p class="text-3xl font-bold text-stone-900" id="sales-total-orders">0</p>
-                    </div>
-                    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-                        <p class="text-stone-500 text-sm font-medium mb-1">售出商品總數</p>
-                        <p class="text-3xl font-bold text-stone-900" id="sales-total-items">0</p>
-                    </div>
-                </div>
-
-                <!-- Sales List -->
-                <div class="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-stone-200 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse min-w-[700px]">
-                            <thead>
-                                <tr class="bg-stone-100/50 text-stone-500 text-sm border-b border-stone-200">
-                                    <th class="p-4 font-semibold w-40">時間 / 訂單編號</th>
-                                    <th class="p-4 font-semibold w-24">付款方式</th>
-                                    <th class="p-4 font-semibold">售出商品明細</th>
-                                    <th class="p-4 font-semibold text-right w-32">訂單金額</th>
-                                    <th class="p-4 font-semibold w-16 text-center">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="sales-list" class="divide-y divide-stone-100">
-                                <!-- Sales rows injected here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+    <!-- ==================== INVENTORY VIEW ==================== -->
+    <div id="inventory-view" class="absolute inset-0 flex flex-col w-full h-full opacity-0 pointer-events-none z-0 bg-stone-50 overflow-y-auto custom-scroll">
+      <!-- Top: Add/Edit Form -->
+      <section class="p-6 md:p-8 bg-white border-b border-stone-200 shadow-sm shrink-0 relative z-10">
+        <div class="max-w-4xl mx-auto">
+          <h2 class="text-xl font-semibold mb-6 text-stone-800 flex items-center gap-2">
+            <i class="ph ph-plus-circle text-[#8b7e74]"></i> 新增 / 編輯商品
+          </h2>
+          <form id="inventory-form" class="space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-4 items-end" onsubmit="event.preventDefault(); saveInventoryItem();">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">編號 (SKU) *</label>
+              <input type="text" id="inv-sku" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 uppercase transition-colors placeholder:text-stone-300" placeholder="例如：A01">
             </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">類別 *</label>
+              <select id="inv-category" onchange="autoGenerateSKU()" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors text-stone-700">
+                <option value="服飾">服飾</option>
+                <option value="包包">包包</option>
+                <option value="配件">配件</option>
+                <option value="小物">小物</option>
+              </select>
+            </div>
+            <div class="md:col-span-3">
+              <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">品項名稱 *</label>
+              <input type="text" id="inv-name" required class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="例如：麂皮幹部外套">
+            </div>
+            <div class="grid grid-cols-2 gap-3 md:col-span-3">
+              <div>
+                <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">原價</label>
+                <input type="number" id="inv-orig-price" min="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="0">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">售價 *</label>
+                <input type="number" id="inv-price" required min="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors" placeholder="0">
+              </div>
+            </div>
+            <div class="md:col-span-1">
+              <label class="block text-xs font-medium text-stone-500 mb-1 uppercase tracking-wider">數量 *</label>
+              <input type="number" id="inv-qty" required min="0" class="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-[#8b7e74] focus:ring-2 focus:ring-[#8b7e74]/20 transition-colors font-bold text-center" placeholder="0">
+            </div>
+            <div class="md:col-span-1">
+              <button type="submit" class="w-full h-[46px] bg-[#8b7e74] text-white rounded-xl font-medium hover:bg-[#7a6f65] active:scale-95 transition-all shadow-sm flex justify-center items-center">
+                <i class="ph ph-floppy-disk text-xl"></i>
+              </button>
+            </div>
+          </form>
         </div>
-    </main>
+      </section>
 
-    <!-- Success Modal -->
-    <div id="success-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center text-center" id="modal-content">
-            <div class="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-5">
-                <i class="ph ph-check text-4xl font-bold"></i>
+      <!-- Bottom: Inventory List with Category Tabs & Editable Fields -->
+      <section class="p-6 md:p-8">
+        <div class="max-w-4xl mx-auto">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-stone-700">快速庫存視圖</h2>
+              <p class="text-xs text-stone-400 mt-0.5">點擊下方欄位可直接修改名稱、價格或數量</p>
             </div>
-            <h3 class="text-2xl font-bold text-stone-800 mb-2">結帳完成！</h3>
-            <p class="text-stone-500 mb-6 text-sm">庫存已自動扣除，訂單已送出。</p>
-            
-            <div class="bg-stone-50 w-full p-5 rounded-2xl mb-6 border border-stone-100 flex flex-col gap-3">
-                <div class="flex justify-between items-center text-sm border-b border-stone-200 pb-3">
-                    <span class="text-stone-500 font-medium">付款方式</span>
-                    <span class="font-bold text-stone-700 bg-white px-2 py-1 rounded-md border border-stone-200 shadow-sm" id="modal-payment">現金</span>
-                </div>
-                <div class="flex justify-between items-end">
-                    <span class="text-sm text-stone-500 mb-1 font-medium">本次實收</span>
-                    <span class="text-3xl font-bold text-stone-900" id="modal-total">$0</span>
-                </div>
+            <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+              <!-- 類別篩選按鈕 -->
+              <div class="flex bg-stone-200/60 p-1 rounded-xl text-xs font-medium overflow-x-auto">
+                <button onclick="setInventoryCategoryFilter('全部')" id="cat-filter-全部" class="px-3 py-1.5 rounded-lg transition-all bg-white text-stone-800 shadow-xs font-bold">全部</button>
+                <button onclick="setInventoryCategoryFilter('服飾')" id="cat-filter-服飾" class="px-3 py-1.5 rounded-lg transition-all text-stone-600 hover:text-stone-800">服飾</button>
+                <button onclick="setInventoryCategoryFilter('包包')" id="cat-filter-包包" class="px-3 py-1.5 rounded-lg transition-all text-stone-600 hover:text-stone-800">包包</button>
+                <button onclick="setInventoryCategoryFilter('配件')" id="cat-filter-配件" class="px-3 py-1.5 rounded-lg transition-all text-stone-600 hover:text-stone-800">配件</button>
+                <button onclick="setInventoryCategoryFilter('小物')" id="cat-filter-小物" class="px-3 py-1.5 rounded-lg transition-all text-stone-600 hover:text-stone-800">小物</button>
+              </div>
+              <span class="text-sm text-stone-500 bg-white px-3 py-1.5 rounded-xl border border-stone-200 shadow-sm font-medium shrink-0" id="inv-count">共 0 件</span>
             </div>
-            
-            <button onclick="closeModal()" class="w-full py-4 bg-stone-900 text-white rounded-xl font-medium text-lg hover:bg-stone-800 transition-colors active:scale-95 shadow-md">
-                完成 (下一筆)
+          </div>
+          <div id="inventory-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <!-- Cards injected here -->
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ==================== OVERVIEW VIEW ==================== -->
+    <div id="overview-view" class="absolute inset-0 flex flex-col w-full h-full opacity-0 pointer-events-none z-0 bg-stone-50 overflow-y-auto custom-scroll p-6 md:p-10">
+      <div class="max-w-6xl mx-auto w-full">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white border border-stone-200 shadow-sm rounded-xl flex items-center justify-center">
+              <i class="ph ph-table text-xl text-[#8b7e74]"></i>
+            </div>
+            <h2 class="text-xl font-bold text-stone-800">全部商品總覽</h2>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-stone-200 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr class="bg-stone-100/50 text-stone-500 text-sm border-b border-stone-200">
+                  <th class="p-4 font-semibold w-32">編號 (SKU)</th>
+                  <th class="p-4 font-semibold w-24">類別</th>
+                  <th class="p-4 font-semibold">品項名稱</th>
+                  <th class="p-4 font-semibold text-right w-32">原價</th>
+                  <th class="p-4 font-semibold text-right w-32">售價</th>
+                  <th class="p-4 font-semibold text-center w-32">數量</th>
+                </tr>
+              </thead>
+              <tbody id="overview-list" class="divide-y divide-stone-100">
+                <!-- Table rows injected here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SALES VIEW ==================== -->
+    <div id="sales-view" class="absolute inset-0 flex flex-col w-full h-full opacity-0 pointer-events-none z-0 bg-stone-50 overflow-y-auto custom-scroll p-6 md:p-10">
+      <div class="max-w-6xl mx-auto w-full">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white border border-stone-200 shadow-sm rounded-xl flex items-center justify-center">
+              <i class="ph ph-chart-line-up text-xl text-[#8b7e74]"></i>
+            </div>
+            <h2 class="text-xl font-bold text-stone-800">今日營收與明細</h2>
+          </div>
+        </div>
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+            <p class="text-stone-500 text-sm font-medium mb-1">總營業額 (TWD)</p>
+            <p class="text-3xl font-bold text-stone-900" id="sales-total-revenue">$0</p>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+            <p class="text-stone-500 text-sm font-medium mb-1">總訂單數</p>
+            <p class="text-3xl font-bold text-stone-900" id="sales-total-orders">0</p>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+            <p class="text-stone-500 text-sm font-medium mb-1">售出商品總數</p>
+            <p class="text-3xl font-bold text-stone-900" id="sales-total-items">0</p>
+          </div>
+        </div>
+        <!-- Sales List -->
+        <div class="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-stone-200 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr class="bg-stone-100/50 text-stone-500 text-sm border-b border-stone-200">
+                  <th class="p-4 font-semibold w-40">時間 / 訂單編號</th>
+                  <th class="p-4 font-semibold w-24">付款方式</th>
+                  <th class="p-4 font-semibold">售出商品明細</th>
+                  <th class="p-4 font-semibold text-right w-32">訂單金額</th>
+                  <th class="p-4 font-semibold w-16 text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody id="sales-list" class="divide-y divide-stone-100">
+                <!-- Sales rows injected here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Success Modal -->
+  <div id="success-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center text-center" id="modal-content">
+      <div class="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-5">
+        <i class="ph ph-check text-4xl font-bold"></i>
+      </div>
+      <h3 class="text-2xl font-bold text-stone-800 mb-2">結帳完成！</h3>
+      <p class="text-stone-500 mb-6 text-sm">庫存已自動扣除，訂單已送出。</p>
+      <div class="bg-stone-50 w-full p-5 rounded-2xl mb-6 border border-stone-100 flex flex-col gap-3">
+        <div class="flex justify-between items-center text-sm border-b border-stone-200 pb-3">
+          <span class="text-stone-500 font-medium">付款方式</span>
+          <span class="font-bold text-stone-700 bg-white px-2 py-1 rounded-md border border-stone-200 shadow-sm" id="modal-payment">現金</span>
+        </div>
+        <div class="flex justify-between items-end">
+          <span class="text-sm text-stone-500 mb-1 font-medium">本次實收</span>
+          <span class="text-3xl font-bold text-stone-900" id="modal-total">$0</span>
+        </div>
+      </div>
+      <button onclick="closeModal()" class="w-full py-4 bg-stone-900 text-white rounded-xl font-medium text-lg hover:bg-stone-800 transition-colors active:scale-95 shadow-md"> 完成 (下一筆) </button>
+    </div>
+  </div>
+
+  <!-- Delete Confirm Modal -->
+  <div id="delete-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center text-center" id="delete-modal-content">
+      <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-5">
+        <i class="ph ph-warning text-4xl font-bold"></i>
+      </div>
+      <h3 class="text-xl font-bold text-stone-800 mb-2">確定要刪除這筆訂單？</h3>
+      <p class="text-stone-500 mb-6 text-sm">刪除後，商品庫存將會自動加回。<br><span class="text-emerald-500 font-medium">雲端表單紀錄也會一併自動刪除</span></p>
+      <div class="flex gap-3 w-full">
+        <button onclick="closeDeleteModal()" class="flex-1 py-3 bg-stone-100 text-stone-600 rounded-xl font-medium hover:bg-stone-200 transition-colors active:scale-95">取消</button>
+        <button onclick="executeDeleteSale()" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors active:scale-95 shadow-md">確定刪除</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbxR4UI2CoI6OicuCiDqX40JUdBb7mOz1rwHrnHzaTWL5ErsOQE9xIEVCojPP9mP146kYA/exec';
+    
+    let inventory = JSON.parse(localStorage.getItem('adorable_inventory')) || [];
+    let salesHistory = JSON.parse(localStorage.getItem('adorable_sales')) || [];
+    let cart = [];
+    let isDiscountEnabled = false;
+    let currentInventoryCategory = '全部';
+
+    // --- 焦點保護小幫手 (防跳掉) ---
+    function saveFocusState() {
+      const activeEl = document.activeElement;
+      if (!activeEl || activeEl.tagName === 'BODY') return null;
+      return {
+        id: activeEl.id,
+        selectionStart: activeEl.selectionStart,
+        selectionEnd: activeEl.selectionEnd
+      };
+    }
+
+    function restoreFocusState(state) {
+      if (!state || !state.id) return;
+      const el = document.getElementById(state.id);
+      if (el) {
+        el.focus();
+        if (typeof el.setSelectionRange === 'function' && state.selectionStart !== null) {
+          try {
+            el.setSelectionRange(state.selectionStart, state.selectionEnd);
+          } catch (e) {}
+        }
+      }
+    }
+
+    // --- 雲端同步功能 ---
+    async function syncFromCloud() {
+      const btn = document.getElementById('sync-btn');
+      if(btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i><span>同步中...</span>';
+      }
+      try {
+        const res = await fetch(scriptURL, { method: 'GET', redirect: 'follow' });
+        const data = await res.json();
+        if (data.status === 'success') {
+          if (data.inventory && data.inventory.length > 0) inventory = data.inventory;
+          if (data.sales && data.sales.length > 0) salesHistory = data.sales;
+          saveToLocal();
+          renderInventory();
+          renderOverview();
+          renderSales();
+          if(btn) btn.innerHTML = '<i class="ph ph-check text-lg text-emerald-600"></i><span>已同步</span>';
+        }
+      } catch(e) {
+        console.warn('Sync failed:', e);
+        if(btn) btn.innerHTML = '<i class="ph ph-warning text-lg text-amber-500"></i><span>單機模式</span>';
+      }
+      if(btn) {
+        btn.disabled = false;
+        setTimeout(() => {
+          if(btn.innerHTML.includes('已同步') || btn.innerHTML.includes('單機模式')) {
+            btn.innerHTML = '<i class="ph ph-arrows-clockwise text-lg"></i><span>同步</span>';
+          }
+        }, 3000);
+      }
+    }
+
+    let updateDebounceTimer = null;
+    async function syncToCloudInventory() {
+      const btn = document.getElementById('sync-btn');
+      if(btn) btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i><span>儲存中...</span>';
+      try {
+        await fetch(scriptURL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'update_inventory', data: inventory })
+        });
+        if(btn) btn.innerHTML = '<i class="ph ph-cloud-check text-lg text-emerald-600"></i><span>雲端已更新</span>';
+      } catch(e) {
+        console.warn('Background sync failed:', e);
+        if(btn) btn.innerHTML = '<i class="ph ph-warning text-lg text-amber-500"></i><span>未同步</span>';
+      }
+      setTimeout(() => {
+        if(btn && (btn.innerHTML.includes('更新') || btn.innerHTML.includes('未同步'))) {
+          btn.innerHTML = '<i class="ph ph-arrows-clockwise text-lg"></i><span>同步</span>';
+        }
+      }, 3000);
+    }
+
+    function saveToLocal() {
+      localStorage.setItem('adorable_inventory', JSON.stringify(inventory));
+      localStorage.setItem('adorable_sales', JSON.stringify(salesHistory));
+    }
+
+    // --- DOM Elements & Init ---
+    const cartContainer = document.getElementById('cart-container');
+    const cartTotalEl = document.getElementById('cart-total');
+    const cartOriginalTotalEl = document.getElementById('cart-original-total');
+    const checkoutBtn = document.getElementById('checkout-btn');
+    const successModal = document.getElementById('success-modal');
+    const modalContent = document.getElementById('modal-content');
+    const modalTotal = document.getElementById('modal-total');
+    const modalPayment = document.getElementById('modal-payment');
+    const checkoutError = document.getElementById('checkout-error');
+    let orderToDelete = null;
+    const skuInput = document.getElementById('sku-input');
+    const skuError = document.getElementById('sku-error');
+    const inventoryList = document.getElementById('inventory-list');
+    const invCount = document.getElementById('inv-count');
+
+    function init() {
+      updateTime();
+      setInterval(updateTime, 60000);
+      renderInventory();
+      renderOverview();
+      renderSales();
+      skuInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') handleAddSku();
+      });
+      skuInput.focus();
+      syncFromCloud();
+    }
+
+    function updateTime() {
+      const now = new Date();
+      document.getElementById('current-time').innerText = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function switchTab(tab) {
+      const views = {
+        checkout: document.getElementById('checkout-view'),
+        inventory: document.getElementById('inventory-view'),
+        overview: document.getElementById('overview-view'),
+        sales: document.getElementById('sales-view')
+      };
+      const tabs = {
+        checkout: document.getElementById('tab-checkout'),
+        inventory: document.getElementById('tab-inventory'),
+        overview: document.getElementById('tab-overview'),
+        sales: document.getElementById('tab-sales')
+      };
+      const activeClass = "font-medium text-[#8b7e74] border-b-2 border-[#8b7e74] pb-1 transition-colors";
+      const inactiveClass = "font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors";
+      
+      for (const key in views) {
+        if (key === tab) {
+          views[key].classList.remove('opacity-0', 'pointer-events-none', 'z-0');
+          views[key].classList.add('z-10');
+          tabs[key].className = activeClass;
+        } else {
+          views[key].classList.add('opacity-0', 'pointer-events-none', 'z-0');
+          views[key].classList.remove('z-10');
+          tabs[key].className = inactiveClass;
+        }
+      }
+      if (tab === 'checkout') setTimeout(() => skuInput.focus(), 300);
+      if (tab === 'inventory') {
+        if (!document.getElementById('inv-sku').value) autoGenerateSKU();
+      }
+    }
+
+    function autoGenerateSKU() {
+      const category = document.getElementById('inv-category').value;
+      const skuInputEl = document.getElementById('inv-sku');
+      const prefixMap = { '服飾': 'A', '包包': 'B', '配件': 'C', '小物': 'D' };
+      const prefix = prefixMap[category] || 'X';
+      const categoryItems = inventory.filter(item => item.category === category);
+      let maxNum = 0;
+      categoryItems.forEach(item => {
+        if (item.sku.startsWith(prefix)) {
+          const match = item.sku.match(/\d+/);
+          if (match) {
+            const num = parseInt(match[0], 10);
+            if (num > maxNum) maxNum = num;
+          }
+        }
+      });
+      const nextNum = maxNum + 1;
+      skuInputEl.value = `${prefix}${nextNum.toString().padStart(2, '0')}`;
+    }
+
+    function saveInventoryItem() {
+      const sku = document.getElementById('inv-sku').value.trim().toUpperCase();
+      const category = document.getElementById('inv-category').value;
+      const name = document.getElementById('inv-name').value.trim();
+      const origPrice = parseInt(document.getElementById('inv-orig-price').value) || 0;
+      const price = parseInt(document.getElementById('inv-price').value) || 0;
+      const quantity = parseInt(document.getElementById('inv-qty').value) || 0;
+      if (!sku || !name || price < 0 || quantity < 0) return;
+      
+      const existingIndex = inventory.findIndex(item => item.sku === sku);
+      if (existingIndex > -1) {
+        inventory[existingIndex] = { sku, category, name, origPrice, price, quantity };
+      } else {
+        inventory.push({ sku, category, name, origPrice, price, quantity });
+      }
+      saveToLocal();
+      renderInventory();
+      renderOverview();
+      syncToCloudInventory();
+      
+      document.getElementById('inventory-form').reset();
+      document.getElementById('inv-category').value = category;
+      autoGenerateSKU();
+      document.getElementById('inv-name').focus();
+      
+      const btn = document.querySelector('#inventory-form button');
+      const origText = btn.innerHTML;
+      btn.innerHTML = '<i class="ph ph-check text-xl"></i>';
+      btn.classList.replace('bg-[#8b7e74]', 'bg-emerald-600');
+      setTimeout(() => {
+        btn.innerHTML = origText;
+        btn.classList.replace('bg-emerald-600', 'bg-[#8b7e74]');
+      }, 1000);
+    }
+
+    function deleteInventoryItem(sku) {
+      inventory = inventory.filter(item => item.sku !== sku);
+      saveToLocal();
+      renderInventory();
+      renderOverview();
+      syncToCloudInventory();
+    }
+
+    // --- 類別過濾切換 ---
+    function setInventoryCategoryFilter(category) {
+      currentInventoryCategory = category;
+      ['全部', '服飾', '包包', '配件', '小物'].forEach(cat => {
+        const btn = document.getElementById(`cat-filter-${cat}`);
+        if (btn) {
+          if (cat === category) {
+            btn.className = "px-3 py-1.5 rounded-lg transition-all bg-white text-stone-800 shadow-xs font-bold";
+          } else {
+            btn.className = "px-3 py-1.5 rounded-lg transition-all text-stone-600 hover:text-stone-800";
+          }
+        }
+      });
+      renderInventory();
+    }
+
+    // --- 卡片內直接修改處理 (帶防抖與防跳掉) ---
+    function handleInlineUpdate(sku, field, value) {
+      const item = inventory.find(i => i.sku === sku);
+      if (!item) return;
+
+      if (field === 'name') {
+        item.name = value;
+      } else if (field === 'price') {
+        item.price = Math.max(0, parseInt(value) || 0);
+      } else if (field === 'quantity') {
+        item.quantity = Math.max(0, parseInt(value) || 0);
+      }
+
+      saveToLocal();
+      renderOverview();
+
+      clearTimeout(updateDebounceTimer);
+      updateDebounceTimer = setTimeout(() => {
+        syncToCloudInventory();
+      }, 1000);
+    }
+
+    // --- 渲染庫存卡片 (支援分類與即時修改) ---
+    function renderInventory() {
+      const focusState = saveFocusState(); // 保持焦點，打字絕不跳掉
+
+      const filteredInventory = currentInventoryCategory === '全部'
+        ? inventory 
+        : inventory.filter(item => item.category === currentInventoryCategory);
+
+      invCount.innerText = `共 ${filteredInventory.length} 件`;
+
+      if (filteredInventory.length === 0) {
+        inventoryList.innerHTML = `
+          <div class="col-span-full flex flex-col items-center justify-center text-stone-400 py-20 bg-white rounded-2xl border border-stone-100 shadow-sm">
+            <i class="ph ph-package text-5xl mb-3 opacity-50"></i>
+            <p class="font-medium">此類別尚未建立任何商品</p>
+          </div>`;
+        restoreFocusState(focusState);
+        return;
+      }
+
+      const sortedInventory = [...filteredInventory].sort((a, b) => a.sku.localeCompare(b.sku));
+      
+      inventoryList.innerHTML = sortedInventory.map(item => `
+        <div class="bg-white p-5 rounded-2xl border border-stone-100 shadow-sm flex flex-col relative group transition-all hover:shadow-md gap-3">
+          <div class="flex justify-between items-start">
+            <div class="flex gap-2 items-center">
+              <span class="bg-stone-100 text-stone-600 text-xs font-bold px-2.5 py-1 rounded-md tracking-wider">${item.sku}</span>
+              <span class="text-[10px] bg-rose-50 text-rose-600 px-2 py-1 rounded-md font-medium">${item.category || '未分類'}</span>
+            </div>
+            <button onclick="deleteInventoryItem('${item.sku}')" class="text-stone-300 hover:text-red-500 transition-colors p-1.5 bg-stone-50 rounded-lg">
+              <i class="ph ph-trash"></i>
             </button>
-        </div>
-    </div>
+          </div>
 
-    <!-- Delete Confirm Modal -->
-    <div id="delete-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center text-center" id="delete-modal-content">
-            <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-5">
-                <i class="ph ph-warning text-4xl font-bold"></i>
+          <!-- 品項名稱可直接編輯 -->
+          <div>
+            <label class="text-[10px] text-stone-400 block mb-0.5 font-medium">品項名稱</label>
+            <input type="text" id="name_${item.sku}" value="${item.name}" 
+              oninput="handleInlineUpdate('${item.sku}', 'name', this.value)"
+              class="w-full font-bold text-stone-800 text-base bg-stone-50/60 border border-stone-200 rounded-xl px-3 py-2 focus:bg-white focus:outline-none focus:border-[#8b7e74] transition-all">
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1 border-t border-stone-50">
+            <div>
+              <label class="text-[10px] text-stone-400 block mb-0.5 font-medium">售價 (TWD)</label>
+              <input type="number" id="price_${item.sku}" value="${item.price}" min="0"
+                oninput="handleInlineUpdate('${item.sku}', 'price', this.value)"
+                class="w-full font-bold text-stone-900 text-sm bg-stone-50/60 border border-stone-200 rounded-xl px-3 py-2 focus:bg-white focus:outline-none focus:border-[#8b7e74] transition-all">
             </div>
-            <h3 class="text-xl font-bold text-stone-800 mb-2">確定要刪除這筆訂單？</h3>
-            <p class="text-stone-500 mb-6 text-sm">刪除後，商品庫存將會自動加回。<br><span class="text-emerald-500 font-medium">雲端表單紀錄也會一併自動刪除</span></p>
-            
-            <div class="flex gap-3 w-full">
-                <button onclick="closeDeleteModal()" class="flex-1 py-3 bg-stone-100 text-stone-600 rounded-xl font-medium hover:bg-stone-200 transition-colors active:scale-95">取消</button>
-                <button onclick="executeDeleteSale()" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors active:scale-95 shadow-md">確定刪除</button>
+            <div>
+              <label class="text-[10px] text-stone-400 block mb-0.5 font-medium">庫存數量</label>
+              <input type="number" id="qty_${item.sku}" value="${item.quantity}" min="0"
+                oninput="handleInlineUpdate('${item.sku}', 'quantity', this.value)"
+                class="w-full font-bold text-sm ${item.quantity <= 0 ? 'text-red-500 bg-red-50/30' : 'text-emerald-600 bg-stone-50/60'} border border-stone-200 rounded-xl px-3 py-2 focus:bg-white focus:outline-none focus:border-[#8b7e74] transition-all text-center">
             </div>
+          </div>
         </div>
-    </div>
+      `).join('');
 
-    <script>
-        // ==========================================
-        // 穩定單機版 + Google 表單自動記帳 (無須 Firebase)
-        // ==========================================
-        
-        // --- API & State Management ---
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbxR4UI2CoI6OicuCiDqX40JUdBb7mOz1rwHrnHzaTWL5ErsOQE9xIEVCojPP9mP146kYA/exec';
-        
-        // 從瀏覽器暫存 (Local Storage) 讀取資料
-        let inventory = JSON.parse(localStorage.getItem('adorable_inventory')) || [];
-        let salesHistory = JSON.parse(localStorage.getItem('adorable_sales')) || [];
-        let cart = [];
-        let isDiscountEnabled = false;
+      restoreFocusState(focusState);
+    }
 
-        // 雲端同步功能
-        async function syncFromCloud() {
-            const btn = document.getElementById('sync-btn');
-            if(btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i><span>同步中...</span>';
-            }
-            try {
-                // 新增 redirect: 'follow' 處理 Google 轉址
-                const res = await fetch(scriptURL, { 
-                    method: 'GET',
-                    redirect: 'follow'
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    // 若雲端有資料才覆蓋，否則保留本地
-                    if (data.inventory && data.inventory.length > 0) inventory = data.inventory;
-                    if (data.sales && data.sales.length > 0) salesHistory = data.sales;
-                    
-                    saveToLocal();
-                    renderInventory();
-                    renderOverview();
-                    renderSales();
-                    if(btn) btn.innerHTML = '<i class="ph ph-check text-lg text-emerald-600"></i><span>已同步</span>';
-                }
-            } catch(e) {
-                console.warn('Sync failed, falling back to local storage:', e);
-                // 顯示溫和的錯誤提示，不影響結帳操作
-                if(btn) btn.innerHTML = '<i class="ph ph-warning text-lg text-amber-500"></i><span>雲端斷線(單機模式)</span>';
-            }
-            if(btn) {
-                btn.disabled = false;
-                setTimeout(() => {
-                    if(btn.innerHTML.includes('已同步') || btn.innerHTML.includes('單機模式')) {
-                        btn.innerHTML = '<i class="ph ph-arrows-clockwise text-lg"></i><span>同步雲端</span>';
-                    }
-                }, 3000);
-            }
+    function renderOverview() {
+      const overviewList = document.getElementById('overview-list');
+      if (!overviewList) return;
+      if (inventory.length === 0) {
+        overviewList.innerHTML = `
+          <tr>
+            <td colspan="6" class="p-12 text-center text-stone-400 bg-white">
+              <i class="ph ph-table text-4xl mb-3 block opacity-30"></i> 目前尚無任何庫存資料
+            </td>
+          </tr>`;
+        return;
+      }
+      const sortedInventory = [...inventory].sort((a, b) => a.sku.localeCompare(b.sku));
+      overviewList.innerHTML = sortedInventory.map(item => `
+        <tr class="hover:bg-stone-50/80 transition-colors bg-white group">
+          <td class="p-4 text-stone-800 font-semibold text-sm">
+            <span class="bg-stone-100 group-hover:bg-white text-stone-600 px-2.5 py-1 rounded-md tracking-wider border border-stone-200 transition-colors">${item.sku}</span>
+          </td>
+          <td class="p-4 text-stone-500 text-sm">
+            <span class="bg-stone-50 px-2 py-1 rounded-md border border-stone-100 font-medium">${item.category || '未分類'}</span>
+          </td>
+          <td class="p-4 text-stone-700 font-medium">${item.name}</td>
+          <td class="p-4 text-stone-400 text-right">${item.origPrice ? '$' + item.origPrice.toLocaleString() : '-'}</td>
+          <td class="p-4 text-stone-900 font-bold text-right">$${item.price.toLocaleString()}</td>
+          <td class="p-4 text-center">
+            <span class="inline-flex items-center justify-center min-w-[40px] px-2 py-1 rounded-md font-bold text-sm ${item.quantity <= 0 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-stone-100 text-stone-700 border border-stone-200'}">
+              ${item.quantity}
+            </span>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function handleAddSku() {
+      const sku = skuInput.value.trim().toUpperCase();
+      if (!sku) return;
+      const product = inventory.find(item => item.sku === sku);
+      if (product) {
+        const cartItem = cart.find(item => item.sku === sku);
+        const currentCartQty = cartItem ? cartItem.quantity : 0;
+        if (currentCartQty < product.quantity) {
+          skuError.classList.add('opacity-0');
+          addToCart(product);
+          skuInput.value = '';
+        } else {
+          showSkuError('庫存不足！');
         }
+      } else {
+        showSkuError('找不到此商品編號！');
+      }
+      skuInput.focus();
+    }
 
-        async function syncToCloudInventory() {
-            const btn = document.getElementById('sync-btn');
-            if(btn) btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i><span>儲存中...</span>';
-            try {
-                await fetch(scriptURL, {
-                    method: 'POST',
-                    redirect: 'follow', // 同樣加上 redirect 屬性
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ action: 'update_inventory', data: inventory })
-                });
-                if(btn) btn.innerHTML = '<i class="ph ph-cloud-check text-lg text-emerald-600"></i><span>雲端已更新</span>';
-            } catch(e) { 
-                console.warn('Background sync failed:', e); 
-                if(btn) btn.innerHTML = '<i class="ph ph-warning text-lg text-amber-500"></i><span>尚未同步至雲端</span>';
-            }
-            setTimeout(() => {
-                if(btn && (btn.innerHTML.includes('更新') || btn.innerHTML.includes('尚未同步'))) {
-                    btn.innerHTML = '<i class="ph ph-arrows-clockwise text-lg"></i><span>同步雲端</span>';
-                }
-            }, 3000);
+    function showSkuError(msg) {
+      skuError.innerText = msg;
+      skuError.classList.remove('opacity-0');
+      setTimeout(() => skuError.classList.add('opacity-0'), 2500);
+    }
+
+    function addToCart(product) {
+      const existingItem = cart.find(item => item.sku === product.sku);
+      if (existingItem) {
+        existingItem.quantity += 1;
+      } else {
+        cart.push({ sku: product.sku, category: product.category, name: product.name, price: product.price, quantity: 1 });
+      }
+      renderCart();
+      setTimeout(() => { cartContainer.scrollTop = cartContainer.scrollHeight; }, 50);
+    }
+
+    function updateQuantity(sku, delta) {
+      const itemIndex = cart.findIndex(item => item.sku === sku);
+      const product = inventory.find(item => item.sku === sku);
+      if (itemIndex > -1 && product) {
+        const newQty = cart[itemIndex].quantity + delta;
+        if (newQty > product.quantity) {
+          showSkuError(`庫存僅剩 ${product.quantity} 件`);
+          return;
         }
-
-        function saveToLocal() {
-            localStorage.setItem('adorable_inventory', JSON.stringify(inventory));
-            localStorage.setItem('adorable_sales', JSON.stringify(salesHistory));
+        cart[itemIndex].quantity = newQty;
+        if (cart[itemIndex].quantity <= 0) {
+          cart.splice(itemIndex, 1);
         }
+      }
+      renderCart();
+      skuInput.focus();
+    }
 
-        // --- DOM Elements ---
-        const cartContainer = document.getElementById('cart-container');
-        const cartTotalEl = document.getElementById('cart-total');
-        const cartOriginalTotalEl = document.getElementById('cart-original-total');
-        const checkoutBtn = document.getElementById('checkout-btn');
-        const successModal = document.getElementById('success-modal');
-        const modalContent = document.getElementById('modal-content');
-        const modalTotal = document.getElementById('modal-total');
-        const modalPayment = document.getElementById('modal-payment');
-        const checkoutError = document.getElementById('checkout-error');
-        
-        let orderToDelete = null; // 用來暫存準備刪除的訂單 ID
-        
-        const skuInput = document.getElementById('sku-input');
-        const skuError = document.getElementById('sku-error');
-        const inventoryList = document.getElementById('inventory-list');
-        const invCount = document.getElementById('inv-count');
+    function removeFromCart(sku) {
+      cart = cart.filter(item => item.sku !== sku);
+      renderCart();
+      skuInput.focus();
+    }
 
-        // --- Initialization ---
-        function init() {
-            updateTime();
-            setInterval(updateTime, 60000);
-            
-            renderInventory();
-            renderOverview();
-            renderSales();
+    function clearCart() {
+      cart = [];
+      isDiscountEnabled = false;
+      const toggleEl = document.getElementById('discount-toggle');
+      if(toggleEl) toggleEl.checked = false;
+      renderCart();
+      skuInput.focus();
+      document.querySelector('input[name="payment"][value="現金"]').checked = true;
+    }
 
-            skuInput.addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') handleAddSku();
-            });
-            skuInput.focus();
-            
-            // 開啟網頁時自動抓取雲端資料
-            syncFromCloud();
+    function toggleDiscount() {
+      isDiscountEnabled = document.getElementById('discount-toggle').checked;
+      renderCart();
+    }
+
+    function renderCart() {
+      if (cart.length === 0) {
+        cartContainer.innerHTML = `
+          <div class="h-full flex flex-col items-center justify-center text-stone-300">
+            <div class="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mb-4">
+              <i class="ph ph-shopping-bag-open text-4xl text-stone-400"></i>
+            </div>
+            <p class="text-sm font-medium text-stone-400">尚未加入商品</p>
+          </div>`;
+        checkoutBtn.disabled = true;
+        cartTotalEl.innerText = '0';
+        cartOriginalTotalEl.classList.add('hidden');
+        return;
+      }
+      checkoutBtn.disabled = false;
+      let originalTotal = 0;
+      let finalTotal = 0;
+      cartContainer.innerHTML = cart.map(item => {
+        const itemTotal = item.price * item.quantity;
+        originalTotal += itemTotal;
+        let itemFinalTotal = itemTotal;
+        let discountTag = '';
+        if (isDiscountEnabled && (item.category === '服飾' || item.category === '包包')) {
+          itemFinalTotal = Math.round(itemTotal * 0.95);
+          finalTotal += itemFinalTotal;
+          discountTag = `<span class="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded ml-1 font-bold">-5%</span>`;
+        } else {
+          finalTotal += itemFinalTotal;
         }
+        return `
+          <div class="flex items-center justify-between bg-white p-4 rounded-2xl border border-stone-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] relative group">
+            <div class="flex-1 pr-3 overflow-hidden">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="text-[10px] font-bold bg-stone-100 text-stone-500 px-2 py-0.5 rounded tracking-wider border border-stone-200">${item.sku}</span>
+                <span class="text-[10px] text-stone-400 border border-stone-200 px-1.5 py-0.5 rounded">${item.category || '未分類'}</span>
+                ${discountTag}
+              </div>
+              <h4 class="text-sm font-medium text-stone-800 truncate pr-4">${item.name}</h4>
+              <div class="flex items-baseline gap-2 mt-1">
+                <p class="text-xs text-[#8b7e74] font-semibold">$${(itemFinalTotal / item.quantity).toLocaleString()}</p>
+                ${discountTag ? `<p class="text-[10px] text-stone-400 line-through">$${item.price.toLocaleString()}</p>` : ''}
+              </div>
+            </div>
+            <div class="flex flex-col items-end gap-2 shrink-0">
+              <button onclick="removeFromCart('${item.sku}')" class="text-stone-300 hover:text-red-500 absolute top-3 right-3 bg-stone-50 p-1 rounded-md transition-colors">
+                <i class="ph ph-x text-sm font-bold"></i>
+              </button>
+              <div class="flex items-center gap-3 bg-stone-50 rounded-xl p-1 border border-stone-200 mt-4 shadow-sm">
+                <button onclick="updateQuantity('${item.sku}', -1)" class="w-8 h-8 flex items-center justify-center text-stone-500 hover:bg-white hover:text-stone-800 hover:shadow-sm rounded-lg transition-all active:scale-95">
+                  <i class="ph ph-minus font-bold"></i>
+                </button>
+                <span class="w-5 text-center text-sm font-bold text-stone-800">${item.quantity}</span>
+                <button onclick="updateQuantity('${item.sku}', 1)" class="w-8 h-8 flex items-center justify-center text-stone-500 hover:bg-white hover:text-stone-800 hover:shadow-sm rounded-lg transition-all active:scale-95">
+                  <i class="ph ph-plus font-bold"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      cartTotalEl.innerText = finalTotal.toLocaleString();
+      if (isDiscountEnabled && originalTotal !== finalTotal) {
+        cartOriginalTotalEl.innerText = `$${originalTotal.toLocaleString()}`;
+        cartOriginalTotalEl.classList.remove('hidden');
+      } else {
+        cartOriginalTotalEl.classList.add('hidden');
+      }
+    }
 
-        function updateTime() {
-            const now = new Date();
-            document.getElementById('current-time').innerText = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+    function processCheckout() {
+      if (cart.length === 0) return;
+      let originalTotal = 0;
+      let finalTotal = 0;
+      cart.forEach(item => {
+        let itemTotal = item.price * item.quantity;
+        originalTotal += itemTotal;
+        if (isDiscountEnabled && (item.category === '服飾' || item.category === '包包')) {
+          finalTotal += Math.round(itemTotal * 0.95);
+        } else {
+          finalTotal += itemTotal;
         }
+      });
+      const paymentMethodInput = document.querySelector('input[name="payment"]:checked');
+      const paymentMethod = paymentMethodInput ? paymentMethodInput.value : '現金';
+      checkoutError.classList.add('hidden');
+      const originalBtnHTML = checkoutBtn.innerHTML;
+      checkoutBtn.disabled = true;
+      checkoutBtn.innerHTML = '<i class="ph ph-spinner animate-spin text-2xl"></i> 處理中...';
 
-        function switchTab(tab) {
-            const views = {
-                checkout: document.getElementById('checkout-view'),
-                inventory: document.getElementById('inventory-view'),
-                overview: document.getElementById('overview-view'),
-                sales: document.getElementById('sales-view')
-            };
-            const tabs = {
-                checkout: document.getElementById('tab-checkout'),
-                inventory: document.getElementById('tab-inventory'),
-                overview: document.getElementById('tab-overview'),
-                sales: document.getElementById('tab-sales')
-            };
+      const orderId = 'ORD-' + Date.now().toString().slice(-6);
+      const timestampMs = Date.now();
+      const timestamp = new Date().toLocaleString('zh-TW');
+      const orderData = {
+        orderId, timestamp, timestampMs, paymentMethod, discountApplied: isDiscountEnabled, originalTotal, finalTotal,
+        items: cart.map(i => ({ sku: i.sku, category: i.category || '未分類', name: i.name, qty: i.quantity, price: i.price }))
+      };
 
-            const activeClass = "font-medium text-[#8b7e74] border-b-2 border-[#8b7e74] pb-1 transition-colors";
-            const inactiveClass = "font-medium text-stone-400 border-b-2 border-transparent hover:text-stone-600 pb-1 transition-colors";
+      try {
+        cart.forEach(cartItem => {
+          const invIndex = inventory.findIndex(i => i.sku === cartItem.sku);
+          if (invIndex > -1) {
+            inventory[invIndex].quantity = Math.max(0, inventory[invIndex].quantity - cartItem.quantity);
+          }
+        });
+        salesHistory.unshift(orderData);
+        saveToLocal();
+        renderInventory();
+        renderOverview();
+        renderSales();
 
-            for (const key in views) {
-                if (key === tab) {
-                    views[key].classList.remove('opacity-0', 'pointer-events-none', 'z-0');
-                    views[key].classList.add('z-10');
-                    tabs[key].className = activeClass;
-                } else {
-                    views[key].classList.add('opacity-0', 'pointer-events-none', 'z-0');
-                    views[key].classList.remove('z-10');
-                    tabs[key].className = inactiveClass;
-                }
-            }
+        fetch(scriptURL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'checkout', data: orderData })
+        }).catch(err => console.warn('Google Sheets sync skipped:', err));
 
-            if (tab === 'checkout') setTimeout(() => skuInput.focus(), 300);
-            if (tab === 'inventory') {
-                if (!document.getElementById('inv-sku').value) autoGenerateSKU();
-            }
+        modalTotal.innerText = `$${finalTotal.toLocaleString()}`;
+        modalPayment.innerText = paymentMethod;
+        successModal.classList.remove('hidden');
+        successModal.classList.add('flex');
+        void successModal.offsetWidth;
+        successModal.classList.remove('opacity-0');
+        modalContent.classList.remove('scale-95');
+      } catch (error) {
+        console.error('Checkout error:', error);
+        checkoutError.classList.remove('hidden');
+      } finally {
+        checkoutBtn.disabled = false;
+        checkoutBtn.innerHTML = originalBtnHTML;
+      }
+    }
+
+    function closeModal() {
+      successModal.classList.add('opacity-0');
+      modalContent.classList.add('scale-95');
+      setTimeout(() => {
+        successModal.classList.add('hidden');
+        successModal.classList.remove('flex');
+        clearCart();
+      }, 300);
+    }
+
+    function promptDeleteSale(orderId) {
+      orderToDelete = orderId;
+      const modal = document.getElementById('delete-modal');
+      const content = document.getElementById('delete-modal-content');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      void modal.offsetWidth;
+      modal.classList.remove('opacity-0');
+      content.classList.remove('scale-95');
+    }
+
+    function closeDeleteModal() {
+      const modal = document.getElementById('delete-modal');
+      const content = document.getElementById('delete-modal-content');
+      modal.classList.add('opacity-0');
+      content.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        orderToDelete = null;
+      }, 300);
+    }
+
+    function executeDeleteSale() {
+      if (!orderToDelete) return;
+      const order = salesHistory.find(o => o.orderId === orderToDelete);
+      if (order && order.items) {
+        order.items.forEach(item => {
+          const invIndex = inventory.findIndex(i => i.sku === item.sku);
+          if (invIndex > -1) {
+            inventory[invIndex].quantity += item.qty;
+          }
+        });
+        syncToCloudInventory();
+      }
+      salesHistory = salesHistory.filter(o => o.orderId !== orderToDelete);
+      saveToLocal();
+      renderInventory();
+      renderOverview();
+      renderSales();
+      closeDeleteModal();
+
+      fetch(scriptURL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'delete_sale', orderId: orderToDelete })
+      }).catch(e => console.warn('雲端刪除失敗', e));
+    }
+
+    function renderSales() {
+      const salesList = document.getElementById('sales-list');
+      const totalRevenueEl = document.getElementById('sales-total-revenue');
+      const totalOrdersEl = document.getElementById('sales-total-orders');
+      const totalItemsEl = document.getElementById('sales-total-items');
+      if (!salesList) return;
+      let totalRevenue = 0;
+      let totalItems = 0;
+      if (salesHistory.length === 0) {
+        salesList.innerHTML = `
+          <tr>
+            <td colspan="5" class="p-12 text-center text-stone-400 bg-white">
+              <i class="ph ph-receipt text-4xl mb-3 block opacity-30"></i> 今日尚無任何結帳紀錄
+            </td>
+          </tr>`;
+        totalRevenueEl.innerText = '$0';
+        totalOrdersEl.innerText = '0';
+        totalItemsEl.innerText = '0';
+        return;
+      }
+      salesList.innerHTML = salesHistory.map(order => {
+        totalRevenue += order.finalTotal;
+        let itemsHtml = '';
+        if (Array.isArray(order.items)) {
+          itemsHtml = order.items.map(item => {
+            totalItems += item.qty;
+            let itemTotal = item.price * item.qty;
+            return `<div class="text-sm text-stone-700 mb-1 flex justify-between items-center gap-4">
+              <div>
+                <span class="text-stone-400 mr-1">[${item.sku}]</span> ${item.name}
+                <span class="font-bold text-stone-800 ml-1">x${item.qty}</span>
+              </div>
+              <div class="text-stone-500 font-medium">$${itemTotal.toLocaleString()}</div>
+            </div>`;
+          }).join('');
+        } else if (order.itemsDetailStr) {
+          itemsHtml = order.itemsDetailStr.split('\n').map(line => `<div class="text-sm text-stone-700 mb-1">${line}</div>`).join('');
         }
+        const paymentBadgeColor = order.paymentMethod === 'LINE Pay' ? 'bg-[#06C755]/10 text-[#06C755] border-[#06C755]/20' : order.paymentMethod === '轉帳' ? 'bg-[#8b7e74]/10 text-[#8b7e74] border-[#8b7e74]/20' : 'bg-stone-100 text-stone-600 border-stone-200';
+        return `
+          <tr class="hover:bg-stone-50/80 transition-colors bg-white">
+            <td class="p-4 align-top">
+              <div class="text-sm font-medium text-stone-800 mb-1">${order.timestamp.split(' ')[1] || order.timestamp}</div>
+              <div class="text-[10px] text-stone-400 tracking-wider">${order.orderId}</div>
+            </td>
+            <td class="p-4 align-top">
+              <span class="px-2.5 py-1 rounded-md text-xs font-bold border ${paymentBadgeColor}">
+                ${order.paymentMethod}
+              </span>
+            </td>
+            <td class="p-4 align-top">
+              ${itemsHtml}
+              ${order.discountApplied ? '<div class="text-xs text-rose-500 mt-1 font-medium"><i class="ph ph-tag"></i> 已套用 95 折</div>' : ''}
+            </td>
+            <td class="p-4 align-top text-right">
+              <div class="text-lg font-bold text-stone-900">$${order.finalTotal.toLocaleString()}</div>
+            </td>
+            <td class="p-4 align-top text-center">
+              <button onclick="promptDeleteSale('${order.orderId}')" class="text-stone-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all active:scale-95">
+                <i class="ph ph-trash text-lg"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      totalRevenueEl.innerText = '$' + totalRevenue.toLocaleString();
+      totalOrdersEl.innerText = salesHistory.length.toString();
+      totalItemsEl.innerText = totalItems.toString();
+    }
 
-        function autoGenerateSKU() {
-            const category = document.getElementById('inv-category').value;
-            const skuInput = document.getElementById('inv-sku');
-            const prefixMap = { '服飾': 'A', '包包': 'B', '配件': 'C', '小物': 'D' };
-            const prefix = prefixMap[category] || 'X';
-
-            const categoryItems = inventory.filter(item => item.category === category);
-            let maxNum = 0;
-
-            categoryItems.forEach(item => {
-                if (item.sku.startsWith(prefix)) {
-                    const match = item.sku.match(/\d+/);
-                    if (match) {
-                        const num = parseInt(match[0], 10);
-                        if (num > maxNum) maxNum = num;
-                    }
-                }
-            });
-
-            const nextNum = maxNum + 1;
-            skuInput.value = `${prefix}${nextNum.toString().padStart(2, '0')}`;
-        }
-
-        function saveInventoryItem() {
-            const sku = document.getElementById('inv-sku').value.trim().toUpperCase();
-            const category = document.getElementById('inv-category').value;
-            const name = document.getElementById('inv-name').value.trim();
-            const origPrice = parseInt(document.getElementById('inv-orig-price').value) || 0;
-            const price = parseInt(document.getElementById('inv-price').value) || 0;
-            const quantity = parseInt(document.getElementById('inv-qty').value) || 0;
-
-            if (!sku || !name || price < 0 || quantity < 0) return;
-
-            const existingIndex = inventory.findIndex(item => item.sku === sku);
-            if (existingIndex > -1) {
-                inventory[existingIndex] = { sku, category, name, origPrice, price, quantity };
-            } else {
-                inventory.push({ sku, category, name, origPrice, price, quantity });
-            }
-
-            saveToLocal();
-            renderInventory();
-            renderOverview();
-            syncToCloudInventory(); // 同步上傳到 Google 表單
-
-            document.getElementById('inventory-form').reset();
-            document.getElementById('inv-category').value = category; 
-            autoGenerateSKU(); 
-            document.getElementById('inv-name').focus(); 
-
-            const btn = document.querySelector('#inventory-form button');
-            const origText = btn.innerHTML;
-            btn.innerHTML = '<i class="ph ph-check text-xl"></i>';
-            btn.classList.replace('bg-[#8b7e74]', 'bg-emerald-600');
-            setTimeout(() => {
-                btn.innerHTML = origText;
-                btn.classList.replace('bg-emerald-600', 'bg-[#8b7e74]');
-            }, 1000);
-        }
-
-        function deleteInventoryItem(sku) {
-            inventory = inventory.filter(item => item.sku !== sku);
-            saveToLocal();
-            renderInventory();
-            renderOverview();
-            syncToCloudInventory(); // 同步上傳到 Google 表單
-        }
-
-        function renderInventory() {
-            invCount.innerText = `共 ${inventory.length} 件`;
-            
-            if (inventory.length === 0) {
-                inventoryList.innerHTML = `
-                    <div class="col-span-full flex flex-col items-center justify-center text-stone-400 py-20 bg-white rounded-2xl border border-stone-100 shadow-sm">
-                        <i class="ph ph-package text-5xl mb-3 opacity-50"></i>
-                        <p class="font-medium">尚未建立任何商品</p>
-                    </div>`;
-                return;
-            }
-
-            const sortedInventory = [...inventory].sort((a, b) => a.sku.localeCompare(b.sku));
-
-            inventoryList.innerHTML = sortedInventory.map(item => `
-                <div class="bg-white p-5 rounded-2xl border border-stone-100 shadow-sm flex flex-col relative group transition-all hover:shadow-md">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex gap-2 items-center">
-                            <span class="bg-stone-100 text-stone-600 text-xs font-bold px-2.5 py-1 rounded-md tracking-wider">${item.sku}</span>
-                            <span class="text-[10px] bg-rose-50 text-rose-600 px-2 py-1 rounded-md font-medium">${item.category || '未分類'}</span>
-                        </div>
-                        <button onclick="deleteInventoryItem('${item.sku}')" class="text-stone-300 hover:text-red-500 transition-colors p-1 bg-stone-50 rounded-md">
-                            <i class="ph ph-trash"></i>
-                        </button>
-                    </div>
-                    <h3 class="font-bold text-stone-800 text-lg mb-3 line-clamp-2">${item.name}</h3>
-                    
-                    <div class="flex items-center justify-between mt-auto pt-3 border-t border-stone-50">
-                        <div class="flex items-baseline gap-1.5">
-                            <span class="text-lg font-bold text-stone-900">$${item.price.toLocaleString()}</span>
-                        </div>
-                        <div class="flex flex-col items-end">
-                            <span class="text-[10px] text-stone-400 font-medium uppercase tracking-wider mb-0.5">目前庫存</span>
-                            <span class="text-sm font-bold ${item.quantity <= 0 ? 'text-red-500' : 'text-emerald-600'} bg-stone-50 px-2 py-0.5 rounded border border-stone-100">
-                                ${item.quantity} 件
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderOverview() {
-            const overviewList = document.getElementById('overview-list');
-            if (!overviewList) return;
-
-            if (inventory.length === 0) {
-                overviewList.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="p-12 text-center text-stone-400 bg-white">
-                            <i class="ph ph-table text-4xl mb-3 block opacity-30"></i>
-                            目前尚無任何庫存資料
-                        </td>
-                    </tr>`;
-                return;
-            }
-
-            const sortedInventory = [...inventory].sort((a, b) => a.sku.localeCompare(b.sku));
-
-            overviewList.innerHTML = sortedInventory.map(item => `
-                <tr class="hover:bg-stone-50/80 transition-colors bg-white group">
-                    <td class="p-4 text-stone-800 font-semibold text-sm">
-                        <span class="bg-stone-100 group-hover:bg-white text-stone-600 px-2.5 py-1 rounded-md tracking-wider border border-stone-200 transition-colors">${item.sku}</span>
-                    </td>
-                    <td class="p-4 text-stone-500 text-sm">
-                        <span class="bg-stone-50 px-2 py-1 rounded-md border border-stone-100 font-medium">${item.category || '未分類'}</span>
-                    </td>
-                    <td class="p-4 text-stone-700 font-medium">${item.name}</td>
-                    <td class="p-4 text-stone-400 text-right">${item.origPrice ? '$' + item.origPrice.toLocaleString() : '-'}</td>
-                    <td class="p-4 text-stone-900 font-bold text-right">$${item.price.toLocaleString()}</td>
-                    <td class="p-4 text-center">
-                        <span class="inline-flex items-center justify-center min-w-[40px] px-2 py-1 rounded-md font-bold text-sm ${item.quantity <= 0 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-stone-100 text-stone-700 border border-stone-200'}">
-                            ${item.quantity}
-                        </span>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function handleAddSku() {
-            const sku = skuInput.value.trim().toUpperCase();
-            if (!sku) return;
-
-            const product = inventory.find(item => item.sku === sku);
-            
-            if (product) {
-                const cartItem = cart.find(item => item.sku === sku);
-                const currentCartQty = cartItem ? cartItem.quantity : 0;
-                
-                if (currentCartQty < product.quantity) {
-                    skuError.classList.add('opacity-0');
-                    addToCart(product);
-                    skuInput.value = ''; 
-                } else {
-                    showSkuError('庫存不足！');
-                }
-            } else {
-                showSkuError('找不到此商品編號！');
-            }
-            skuInput.focus();
-        }
-
-        function showSkuError(msg) {
-            skuError.innerText = msg;
-            skuError.classList.remove('opacity-0');
-            setTimeout(() => skuError.classList.add('opacity-0'), 2500);
-        }
-
-        function addToCart(product) {
-            const existingItem = cart.find(item => item.sku === product.sku);
-            if (existingItem) {
-                existingItem.quantity += 1;
-            } else {
-                cart.push({ sku: product.sku, category: product.category, name: product.name, price: product.price, quantity: 1 });
-            }
-            renderCart();
-            setTimeout(() => { cartContainer.scrollTop = cartContainer.scrollHeight; }, 50);
-        }
-
-        function updateQuantity(sku, delta) {
-            const itemIndex = cart.findIndex(item => item.sku === sku);
-            const product = inventory.find(item => item.sku === sku);
-            
-            if (itemIndex > -1 && product) {
-                const newQty = cart[itemIndex].quantity + delta;
-                
-                if (newQty > product.quantity) {
-                    showSkuError(`庫存僅剩 ${product.quantity} 件`);
-                    return;
-                }
-                
-                cart[itemIndex].quantity = newQty;
-                if (cart[itemIndex].quantity <= 0) {
-                    cart.splice(itemIndex, 1);
-                }
-            }
-            renderCart();
-            skuInput.focus();
-        }
-
-        function removeFromCart(sku) {
-            cart = cart.filter(item => item.sku !== sku);
-            renderCart();
-            skuInput.focus();
-        }
-
-        function clearCart() {
-            cart = [];
-            isDiscountEnabled = false;
-            const toggleEl = document.getElementById('discount-toggle');
-            if(toggleEl) toggleEl.checked = false;
-            renderCart();
-            skuInput.focus();
-            document.querySelector('input[name="payment"][value="現金"]').checked = true;
-        }
-
-        function toggleDiscount() {
-            isDiscountEnabled = document.getElementById('discount-toggle').checked;
-            renderCart();
-        }
-
-        function renderCart() {
-            if (cart.length === 0) {
-                cartContainer.innerHTML = `
-                    <div class="h-full flex flex-col items-center justify-center text-stone-300">
-                        <div class="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mb-4">
-                            <i class="ph ph-shopping-bag-open text-4xl text-stone-400"></i>
-                        </div>
-                        <p class="text-sm font-medium text-stone-400">尚未加入商品</p>
-                    </div>`;
-                checkoutBtn.disabled = true;
-                cartTotalEl.innerText = '0';
-                cartOriginalTotalEl.classList.add('hidden');
-                return;
-            }
-
-            checkoutBtn.disabled = false;
-            let originalTotal = 0;
-            let finalTotal = 0;
-
-            cartContainer.innerHTML = cart.map(item => {
-                const itemTotal = item.price * item.quantity;
-                originalTotal += itemTotal;
-                
-                let itemFinalTotal = itemTotal;
-                let discountTag = '';
-                
-                if (isDiscountEnabled && (item.category === '服飾' || item.category === '包包')) {
-                    itemFinalTotal = Math.round(itemTotal * 0.95);
-                    finalTotal += itemFinalTotal;
-                    discountTag = `<span class="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded ml-1 font-bold">-5%</span>`;
-                } else {
-                    finalTotal += itemFinalTotal;
-                }
-
-                return `
-                <div class="flex items-center justify-between bg-white p-4 rounded-2xl border border-stone-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)] relative group">
-                    <div class="flex-1 pr-3 overflow-hidden">
-                        <div class="flex items-center gap-2 mb-1.5">
-                            <span class="text-[10px] font-bold bg-stone-100 text-stone-500 px-2 py-0.5 rounded tracking-wider border border-stone-200">${item.sku}</span>
-                            <span class="text-[10px] text-stone-400 border border-stone-200 px-1.5 py-0.5 rounded">${item.category || '未分類'}</span>
-                            ${discountTag}
-                        </div>
-                        <h4 class="text-sm font-medium text-stone-800 truncate pr-4">${item.name}</h4>
-                        <div class="flex items-baseline gap-2 mt-1">
-                            <p class="text-xs text-[#8b7e74] font-semibold">$${(itemFinalTotal / item.quantity).toLocaleString()}</p>
-                            ${discountTag ? `<p class="text-[10px] text-stone-400 line-through">$${item.price.toLocaleString()}</p>` : ''}
-                        </div>
-                    </div>
-                    
-                    <div class="flex flex-col items-end gap-2 shrink-0">
-                        <button onclick="removeFromCart('${item.sku}')" class="text-stone-300 hover:text-red-500 absolute top-3 right-3 bg-stone-50 p-1 rounded-md transition-colors">
-                            <i class="ph ph-x text-sm font-bold"></i>
-                        </button>
-                        
-                        <div class="flex items-center gap-3 bg-stone-50 rounded-xl p-1 border border-stone-200 mt-4 shadow-sm">
-                            <button onclick="updateQuantity('${item.sku}', -1)" class="w-8 h-8 flex items-center justify-center text-stone-500 hover:bg-white hover:text-stone-800 hover:shadow-sm rounded-lg transition-all active:scale-95">
-                                <i class="ph ph-minus font-bold"></i>
-                            </button>
-                            <span class="w-5 text-center text-sm font-bold text-stone-800">${item.quantity}</span>
-                            <button onclick="updateQuantity('${item.sku}', 1)" class="w-8 h-8 flex items-center justify-center text-stone-500 hover:bg-white hover:text-stone-800 hover:shadow-sm rounded-lg transition-all active:scale-95">
-                                <i class="ph ph-plus font-bold"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                `;
-            }).join('');
-
-            cartTotalEl.innerText = finalTotal.toLocaleString();
-            
-            if (isDiscountEnabled && originalTotal !== finalTotal) {
-                cartOriginalTotalEl.innerText = `$${originalTotal.toLocaleString()}`;
-                cartOriginalTotalEl.classList.remove('hidden');
-            } else {
-                cartOriginalTotalEl.classList.add('hidden');
-            }
-        }
-
-        function processCheckout() {
-            if (cart.length === 0) return;
-
-            let originalTotal = 0;
-            let finalTotal = 0;
-            
-            cart.forEach(item => {
-                let itemTotal = item.price * item.quantity;
-                originalTotal += itemTotal;
-                if (isDiscountEnabled && (item.category === '服飾' || item.category === '包包')) {
-                    finalTotal += Math.round(itemTotal * 0.95);
-                } else {
-                    finalTotal += itemTotal;
-                }
-            });
-            
-            const paymentMethodInput = document.querySelector('input[name="payment"]:checked');
-            const paymentMethod = paymentMethodInput ? paymentMethodInput.value : '現金';
-            
-            checkoutError.classList.add('hidden');
-            const originalBtnHTML = checkoutBtn.innerHTML;
-            checkoutBtn.disabled = true;
-            checkoutBtn.innerHTML = '<i class="ph ph-spinner animate-spin text-2xl"></i> 處理中...';
-
-            const orderId = 'ORD-' + Date.now().toString().slice(-6);
-            const timestampMs = Date.now();
-            const timestamp = new Date().toLocaleString('zh-TW');
-
-            const orderData = {
-                orderId,
-                timestamp,
-                timestampMs,
-                paymentMethod,
-                discountApplied: isDiscountEnabled,
-                originalTotal,
-                finalTotal,
-                items: cart.map(i => ({
-                    sku: i.sku,
-                    category: i.category || '未分類', 
-                    name: i.name, 
-                    qty: i.quantity, 
-                    price: i.price 
-                }))
-            };
-
-            try {
-                // 1. 同步更新本地庫存數量
-                cart.forEach(cartItem => {
-                    const invIndex = inventory.findIndex(i => i.sku === cartItem.sku);
-                    if (invIndex > -1) {
-                        inventory[invIndex].quantity = Math.max(0, inventory[invIndex].quantity - cartItem.quantity);
-                    }
-                });
-
-                // 2. 儲存營收明細到本地端
-                salesHistory.unshift(orderData); // 加在最前面
-                saveToLocal();
-                
-                // 更新畫面
-                renderInventory();
-                renderOverview();
-                renderSales();
-
-                // 3. 拋送至 Google Sheets (背景執行)
-                fetch(scriptURL, {
-                    method: 'POST',
-                    redirect: 'follow', // 補上這個關鍵參數，處理 Google 轉址
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ action: 'checkout', data: orderData }) // 修改送出格式
-                }).catch(err => console.warn('Google Sheets sync skipped:', err));
-
-                // 顯示成功畫面
-                modalTotal.innerText = `$${finalTotal.toLocaleString()}`;
-                modalPayment.innerText = paymentMethod;
-                
-                successModal.classList.remove('hidden');
-                successModal.classList.add('flex');
-                void successModal.offsetWidth;
-                successModal.classList.remove('opacity-0');
-                modalContent.classList.remove('scale-95');
-
-            } catch (error) {
-                console.error('Checkout error:', error);
-                checkoutError.classList.remove('hidden');
-            } finally {
-                checkoutBtn.disabled = false;
-                checkoutBtn.innerHTML = originalBtnHTML;
-            }
-        }
-
-        function closeModal() {
-            successModal.classList.add('opacity-0');
-            modalContent.classList.add('scale-95');
-            
-            setTimeout(() => {
-                successModal.classList.add('hidden');
-                successModal.classList.remove('flex');
-                clearCart();
-            }, 300);
-        }
-
-        // --- 刪除訂單相關功能 ---
-        function promptDeleteSale(orderId) {
-            orderToDelete = orderId;
-            const modal = document.getElementById('delete-modal');
-            const content = document.getElementById('delete-modal-content');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            void modal.offsetWidth;
-            modal.classList.remove('opacity-0');
-            content.classList.remove('scale-95');
-        }
-
-        function closeDeleteModal() {
-            const modal = document.getElementById('delete-modal');
-            const content = document.getElementById('delete-modal-content');
-            modal.classList.add('opacity-0');
-            content.classList.add('scale-95');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-                orderToDelete = null;
-            }, 300);
-        }
-
-        function executeDeleteSale() {
-            if (!orderToDelete) return;
-            
-            // 找出要刪除的訂單，並將庫存加回去
-            const order = salesHistory.find(o => o.orderId === orderToDelete);
-            if (order && order.items) {
-                order.items.forEach(item => {
-                    const invIndex = inventory.findIndex(i => i.sku === item.sku);
-                    if (invIndex > -1) {
-                        inventory[invIndex].quantity += item.qty; // 恢復庫存
-                    }
-                });
-                syncToCloudInventory(); // 同步恢復後的庫存到雲端
-            }
-
-            // 從本地紀錄中移除
-            salesHistory = salesHistory.filter(o => o.orderId !== orderToDelete);
-            saveToLocal();
-            
-            // 重新渲染畫面
-            renderInventory();
-            renderOverview();
-            renderSales();
-            
-            // 關閉視窗
-            closeDeleteModal();
-            
-            // 嘗試通知 Google 表單刪除該筆訂單 (若未更新 GAS，這步會被忽略)
-            fetch(scriptURL, {
-                method: 'POST',
-                redirect: 'follow',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'delete_sale', orderId: orderToDelete })
-            }).catch(e => console.warn('雲端刪除失敗', e));
-        }
-
-        function renderSales() {
-            const salesList = document.getElementById('sales-list');
-            const totalRevenueEl = document.getElementById('sales-total-revenue');
-            const totalOrdersEl = document.getElementById('sales-total-orders');
-            const totalItemsEl = document.getElementById('sales-total-items');
-            
-            if (!salesList) return;
-
-            let totalRevenue = 0;
-            let totalItems = 0;
-
-            if (salesHistory.length === 0) {
-                salesList.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="p-12 text-center text-stone-400 bg-white">
-                            <i class="ph ph-receipt text-4xl mb-3 block opacity-30"></i>
-                            今日尚無任何結帳紀錄
-                        </td>
-                    </tr>`;
-                totalRevenueEl.innerText = '$0';
-                totalOrdersEl.innerText = '0';
-                totalItemsEl.innerText = '0';
-                return;
-            }
-
-            salesList.innerHTML = salesHistory.map(order => {
-                totalRevenue += order.finalTotal;
-                
-                let itemsHtml = '';
-                if (Array.isArray(order.items)) {
-                    // 本地剛結帳的格式 (新增個別金額顯示)
-                    itemsHtml = order.items.map(item => {
-                        totalItems += item.qty;
-                        let itemTotal = item.price * item.qty;
-                        return `<div class="text-sm text-stone-700 mb-1 flex justify-between items-center gap-4">
-                            <div>
-                                <span class="text-stone-400 mr-1">[${item.sku}]</span>
-                                ${item.name} <span class="font-bold text-stone-800 ml-1">x${item.qty}</span>
-                            </div>
-                            <div class="text-stone-500 font-medium">$${itemTotal.toLocaleString()}</div>
-                        </div>`;
-                    }).join('');
-                } else if (order.itemsDetailStr) {
-                    // 從 Google 表單抓下來的格式
-                    itemsHtml = order.itemsDetailStr.split('\n').map(line => 
-                        `<div class="text-sm text-stone-700 mb-1">${line}</div>`
-                    ).join('');
-                }
-
-                const paymentBadgeColor = order.paymentMethod === 'LINE Pay' ? 'bg-[#06C755]/10 text-[#06C755] border-[#06C755]/20' : 
-                                          order.paymentMethod === '轉帳' ? 'bg-[#8b7e74]/10 text-[#8b7e74] border-[#8b7e74]/20' : 
-                                          'bg-stone-100 text-stone-600 border-stone-200';
-
-                return `
-                <tr class="hover:bg-stone-50/80 transition-colors bg-white">
-                    <td class="p-4 align-top">
-                        <div class="text-sm font-medium text-stone-800 mb-1">${order.timestamp.split(' ')[1] || order.timestamp}</div>
-                        <div class="text-[10px] text-stone-400 tracking-wider">${order.orderId}</div>
-                    </td>
-                    <td class="p-4 align-top">
-                        <span class="px-2.5 py-1 rounded-md text-xs font-bold border ${paymentBadgeColor}">
-                            ${order.paymentMethod}
-                        </span>
-                    </td>
-                    <td class="p-4 align-top">
-                        ${itemsHtml}
-                        ${order.discountApplied ? '<div class="text-xs text-rose-500 mt-1 font-medium"><i class="ph ph-tag"></i> 已套用 95 折</div>' : ''}
-                    </td>
-                    <td class="p-4 align-top text-right">
-                        <div class="text-lg font-bold text-stone-900">$${order.finalTotal.toLocaleString()}</div>
-                    </td>
-                    <td class="p-4 align-top text-center">
-                        <button onclick="promptDeleteSale('${order.orderId}')" class="text-stone-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all active:scale-95">
-                            <i class="ph ph-trash text-lg"></i>
-                        </button>
-                    </td>
-                </tr>
-                `;
-            }).join('');
-
-            totalRevenueEl.innerText = '$' + totalRevenue.toLocaleString();
-            totalOrdersEl.innerText = salesHistory.length.toString();
-            totalItemsEl.innerText = totalItems.toString();
-        }
-
-        window.onload = init;
-    </script>
+    window.onload = init;
+  </script>
 </body>
 </html>
